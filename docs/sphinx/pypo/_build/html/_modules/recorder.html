@@ -1,0 +1,453 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>recorder &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for recorder</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">pytz</span>
+<span class="kn">import</span> <span class="nn">signal</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">configobj</span> <span class="k">import</span> <span class="n">ConfigObj</span>
+
+<span class="kn">from</span> <span class="nn">poster.encode</span> <span class="k">import</span> <span class="n">multipart_encode</span>
+<span class="kn">from</span> <span class="nn">poster.streaminghttp</span> <span class="k">import</span> <span class="n">register_openers</span>
+
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="k">import</span> <span class="n">Popen</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="k">import</span> <span class="n">PIPE</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
+
+<span class="kn">import</span> <span class="nn">mutagen</span>
+
+<span class="kn">from</span> <span class="nn">api_clients</span> <span class="k">import</span> <span class="n">api_client</span> <span class="k">as</span> <span class="n">apc</span>
+
+<div class="viewcode-block" id="api_client"><a class="viewcode-back" href="../pypo.html#recorder.api_client">[docs]</a><span class="k">def</span> <span class="nf">api_client</span><span class="p">(</span><span class="n">logger</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    api_client returns the correct instance of AirtimeApiClient. Although there is only one</span>
+<span class="sd">    instance to choose from at the moment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">apc</span><span class="o">.</span><span class="n">AirtimeApiClient</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span></div>
+
+<span class="c1"># loading config file</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">ConfigObj</span><span class="p">(</span><span class="s1">&#39;/etc/airtime/airtime.conf&#39;</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Error loading config file: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+<span class="c1"># TODO : add docstrings everywhere in this module</span>
+
+<div class="viewcode-block" id="getDateTimeObj"><a class="viewcode-back" href="../pypo.html#recorder.getDateTimeObj">[docs]</a><span class="k">def</span> <span class="nf">getDateTimeObj</span><span class="p">(</span><span class="n">time</span><span class="p">):</span>
+    <span class="c1"># TODO : clean up for this function later.</span>
+    <span class="c1"># - use tuples to parse result from split (instead of indices)</span>
+    <span class="c1"># - perhaps validate the input before doing dangerous casts?</span>
+    <span class="c1"># - rename this function to follow the standard convention</span>
+    <span class="c1"># - rename time to something else so that the module name does not get</span>
+    <span class="c1">#   shadowed</span>
+    <span class="c1"># - add docstring to document all behaviour of this function</span>
+    <span class="n">timeinfo</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+    <span class="n">date</span> <span class="o">=</span> <span class="p">[</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">timeinfo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span> <span class="p">]</span>
+    <span class="n">my_time</span> <span class="o">=</span> <span class="p">[</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">timeinfo</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span> <span class="p">]</span>
+    <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">date</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">date</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">date</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">my_time</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">my_time</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">my_time</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+<span class="n">PUSH_INTERVAL</span> <span class="o">=</span> <span class="mi">2</span>
+
+<div class="viewcode-block" id="ShowRecorder"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder">[docs]</a><span class="k">class</span> <span class="nc">ShowRecorder</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">show_instance</span><span class="p">,</span> <span class="n">show_name</span><span class="p">,</span> <span class="n">filelength</span><span class="p">,</span> <span class="n">start_time</span><span class="p">):</span>
+        <span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;recorder&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span> <span class="o">=</span> <span class="n">api_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filelength</span> <span class="o">=</span> <span class="n">filelength</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show_instance</span> <span class="o">=</span> <span class="n">show_instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show_name</span> <span class="o">=</span> <span class="n">show_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="ShowRecorder.record_show"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder.record_show">[docs]</a>    <span class="k">def</span> <span class="nf">record_show</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filelength</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;record_file_type&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;mp3&quot;</span><span class="p">,</span> <span class="s2">&quot;ogg&quot;</span><span class="p">]:</span>
+            <span class="n">filetype</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;record_file_type&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filetype</span> <span class="o">=</span> <span class="s2">&quot;ogg&quot;</span><span class="p">;</span>
+
+        <span class="n">joined_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;base_recorded_files&quot;</span><span class="p">],</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">joined_path</span><span class="p">,</span> <span class="n">filetype</span><span class="p">)</span>
+
+        <span class="n">br</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;record_bitrate&quot;</span><span class="p">]</span>
+        <span class="n">sr</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;record_samplerate&quot;</span><span class="p">]</span>
+        <span class="n">c</span>  <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;record_channels&quot;</span><span class="p">]</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;pypo&quot;</span><span class="p">][</span><span class="s2">&quot;record_sample_size&quot;</span><span class="p">]</span>
+
+        <span class="c1">#-f:16,2,44100</span>
+        <span class="c1">#-b:256</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;ecasound -f:</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2"> -i alsa -o </span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">000 -t:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> \
+                                <span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">sr</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="n">br</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">command</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;starting record&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;command &quot;</span> <span class="o">+</span> <span class="n">command</span><span class="p">)</span>
+ 
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span><span class="n">stderr</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+
+        <span class="c1">#blocks at the following line until the child process</span>
+        <span class="c1">#quits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+        <span class="n">outmsgs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">outmsgs</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;^ERROR&#39;</span><span class="p">,</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Recording error is found: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">outmsgs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;finishing record, return code </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">returncode</span><span class="p">)</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">returncode</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">code</span><span class="p">,</span> <span class="n">filepath</span></div>
+
+<div class="viewcode-block" id="ShowRecorder.cancel_recording"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder.cancel_recording">[docs]</a>    <span class="k">def</span> <span class="nf">cancel_recording</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#send signal interrupt (2)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Show manually cancelled!&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">send_signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">)</span></div>
+
+    <span class="c1">#if self.p is defined, then the child process ecasound is recording</span>
+<div class="viewcode-block" id="ShowRecorder.is_recording"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder.is_recording">[docs]</a>    <span class="k">def</span> <span class="nf">is_recording</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ShowRecorder.upload_file"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder.upload_file">[docs]</a>    <span class="k">def</span> <span class="nf">upload_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">):</span>
+
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">filepath</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Register the streaming http handlers with urllib2</span>
+        <span class="n">register_openers</span><span class="p">()</span>
+
+        <span class="c1"># files is what requests actually expects</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;file&#39;</span><span class="p">:</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">),</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;show_instance&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">show_instance</span><span class="p">)}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">upload_recorded_show</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">show_instance</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ShowRecorder.set_metadata_and_save"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder.set_metadata_and_save">[docs]</a>    <span class="k">def</span> <span class="nf">set_metadata_and_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Writes song to &#39;filepath&#39;. Uses metadata from:</span>
+<span class="sd">            self.start_time, self.show_name, self.show_instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">full_date</span><span class="p">,</span> <span class="n">full_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># No idea why we translated - to : before</span>
+            <span class="c1">#full_time = full_time.replace(&quot;:&quot;,&quot;-&quot;)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;time: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">full_time</span><span class="p">)</span>
+            <span class="n">artist</span> <span class="o">=</span> <span class="s2">&quot;Airtime Show Recorder&quot;</span>
+            <span class="c1">#set some metadata for our file daemon</span>
+            <span class="n">recorded_file</span>           <span class="o">=</span> <span class="n">mutagen</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">easy</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">recorded_file</span><span class="p">[</span><span class="s1">&#39;artist&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">artist</span>
+            <span class="n">recorded_file</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span>   <span class="o">=</span> <span class="n">full_date</span>
+            <span class="n">recorded_file</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">-</span><span class="si">%s</span><span class="s2">-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">show_name</span><span class="p">,</span>
+                    <span class="n">full_date</span><span class="p">,</span> <span class="n">full_time</span><span class="p">)</span>
+            <span class="c1">#You cannot pass ints into the metadata of a file. Even tracknumber needs to be a string</span>
+            <span class="n">recorded_file</span><span class="p">[</span><span class="s1">&#39;tracknumber&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">show_instance</span><span class="p">)</span>
+            <span class="n">recorded_file</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;traceback: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ShowRecorder.run"><a class="viewcode-back" href="../pypo.html#recorder.ShowRecorder.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">code</span><span class="p">,</span> <span class="n">filepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">record_show</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Preparing to upload </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">filepath</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_metadata_and_save</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;problem recording show&quot;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="Recorder"><a class="viewcode-back" href="../pypo.html#recorder.Recorder">[docs]</a><span class="k">class</span> <span class="nc">Recorder</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q</span><span class="p">):</span>
+        <span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;recorder&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span> <span class="o">=</span> <span class="n">api_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sr</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_timezone</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue</span> <span class="o">=</span> <span class="n">q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loops</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;RecorderFetch: init complete&quot;</span><span class="p">)</span>
+
+        <span class="n">success</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">success</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">register_component</span><span class="p">(</span><span class="s1">&#39;show-recorder&#39;</span><span class="p">)</span>
+                <span class="n">success</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Recorder.handle_message"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.handle_message">[docs]</a>    <span class="k">def</span> <span class="nf">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="n">msg</span>     <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="n">msg</span><span class="p">[</span><span class="s2">&quot;event_type&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Received msg from Pypo Message Handler: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;cancel_recording&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">currently_recording</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cancel_recording</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">process_recorder_schedule</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">loops</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">start_record</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Recorder.process_recorder_schedule"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.process_recorder_schedule">[docs]</a>    <span class="k">def</span> <span class="nf">process_recorder_schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Parsing recording show schedules...&quot;</span><span class="p">)</span>
+        <span class="n">temp_shows_to_record</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">shows</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;shows&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">show</span> <span class="ow">in</span> <span class="n">shows</span><span class="p">:</span>
+            <span class="n">show_starts</span> <span class="o">=</span> <span class="n">getDateTimeObj</span><span class="p">(</span><span class="n">show</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;starts&#39;</span><span class="p">])</span>
+            <span class="n">show_end</span> <span class="o">=</span> <span class="n">getDateTimeObj</span><span class="p">(</span><span class="n">show</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;ends&#39;</span><span class="p">])</span>
+            <span class="n">time_delta</span> <span class="o">=</span> <span class="n">show_end</span> <span class="o">-</span> <span class="n">show_starts</span>
+
+            <span class="n">temp_shows_to_record</span><span class="p">[</span><span class="n">show</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;starts&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_delta</span><span class="p">,</span>
+                    <span class="n">show</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;instance_id&#39;</span><span class="p">],</span> <span class="n">show</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;server_timezone&#39;</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span> <span class="o">=</span> <span class="n">temp_shows_to_record</span></div>
+
+<div class="viewcode-block" id="Recorder.get_time_till_next_show"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.get_time_till_next_show">[docs]</a>    <span class="k">def</span> <span class="nf">get_time_till_next_show</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tnow</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+            <span class="n">sorted_show_keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+            <span class="n">start_time</span> <span class="o">=</span> <span class="n">sorted_show_keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">next_show</span> <span class="o">=</span> <span class="n">getDateTimeObj</span><span class="p">(</span><span class="n">start_time</span><span class="p">)</span>
+
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">next_show</span> <span class="o">-</span> <span class="n">tnow</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">delta</span><span class="o">.</span><span class="n">seconds</span><span class="p">,</span> <span class="n">delta</span><span class="o">.</span><span class="n">microseconds</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">out</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Shows </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Next show </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">next_show</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Now </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tnow</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+    
+<div class="viewcode-block" id="Recorder.cancel_recording"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.cancel_recording">[docs]</a>    <span class="k">def</span> <span class="nf">cancel_recording</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sr</span><span class="o">.</span><span class="n">cancel_recording</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sr</span> <span class="o">=</span> <span class="kc">None</span></div>
+    
+<div class="viewcode-block" id="Recorder.currently_recording"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.currently_recording">[docs]</a>    <span class="k">def</span> <span class="nf">currently_recording</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sr</span><span class="o">.</span><span class="n">is_recording</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Recorder.start_record"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.start_record">[docs]</a>    <span class="k">def</span> <span class="nf">start_record</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_time_till_next_show</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">delta</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;sleeping </span><span class="si">%s</span><span class="s2"> seconds until show&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>
+
+                <span class="n">sorted_show_keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="n">sorted_show_keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">show_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">[</span><span class="n">start_time</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">show_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">[</span><span class="n">start_time</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">show_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">[</span><span class="n">start_time</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">server_timezone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">[</span><span class="n">start_time</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span>
+
+                <span class="n">T</span> <span class="o">=</span> <span class="n">pytz</span><span class="o">.</span><span class="n">timezone</span><span class="p">(</span><span class="n">server_timezone</span><span class="p">)</span>
+                <span class="n">start_time_on_UTC</span> <span class="o">=</span> <span class="n">getDateTimeObj</span><span class="p">(</span><span class="n">start_time</span><span class="p">)</span>
+                <span class="n">start_time_on_server</span> <span class="o">=</span> <span class="n">start_time_on_UTC</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">pytz</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+                <span class="n">start_time_formatted</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%(year)d</span><span class="s1">-</span><span class="si">%(month)02d</span><span class="s1">-</span><span class="si">%(day)02d</span><span class="s1"> </span><span class="si">%(hour)02d</span><span class="s1">:</span><span class="si">%(min)02d</span><span class="s1">:</span><span class="si">%(sec)02d</span><span class="s1">&#39;</span> <span class="o">%</span> \
+                    <span class="p">{</span><span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="n">start_time_on_server</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="s1">&#39;month&#39;</span><span class="p">:</span> <span class="n">start_time_on_server</span><span class="o">.</span><span class="n">month</span><span class="p">,</span> <span class="s1">&#39;day&#39;</span><span class="p">:</span> <span class="n">start_time_on_server</span><span class="o">.</span><span class="n">day</span><span class="p">,</span> \
+                        <span class="s1">&#39;hour&#39;</span><span class="p">:</span> <span class="n">start_time_on_server</span><span class="o">.</span><span class="n">hour</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="n">start_time_on_server</span><span class="o">.</span><span class="n">minute</span><span class="p">,</span> <span class="s1">&#39;sec&#39;</span><span class="p">:</span> <span class="n">start_time_on_server</span><span class="o">.</span><span class="n">second</span><span class="p">}</span>
+                    
+                
+                <span class="n">seconds_waiting</span> <span class="o">=</span> <span class="mi">0</span>
+                
+                <span class="c1">#avoiding CC-5299</span>
+                <span class="k">while</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">currently_recording</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Previous record not finished, sleeping 100ms&quot;</span><span class="p">)</span>
+                        <span class="n">seconds_waiting</span> <span class="o">=</span> <span class="n">seconds_waiting</span> <span class="o">+</span> <span class="mf">0.1</span>
+                        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>   
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">show_length_seconds</span> <span class="o">=</span> <span class="n">show_length</span><span class="o">.</span><span class="n">seconds</span> <span class="o">-</span> <span class="n">seconds_waiting</span>
+                        
+                        <span class="bp">self</span><span class="o">.</span><span class="n">sr</span> <span class="o">=</span> <span class="n">ShowRecorder</span><span class="p">(</span><span class="n">show_instance</span><span class="p">,</span> <span class="n">show_name</span><span class="p">,</span> <span class="n">show_length_seconds</span><span class="p">,</span> <span class="n">start_time_formatted</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">sr</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                        <span class="k">break</span>
+                    
+                <span class="c1">#remove show from shows to record.</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">shows_to_record</span><span class="p">[</span><span class="n">start_time</span><span class="p">]</span>
+                <span class="c1">#self.time_till_next_show = self.get_time_till_next_show()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span> <span class="p">:</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;traceback: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Recorder.run"><a class="viewcode-back" href="../pypo.html#recorder.Recorder.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Main loop of the thread:</span>
+<span class="sd">        Wait for schedule updates from RabbitMQ, but in case there arent any,</span>
+<span class="sd">        poll the server to get the upcoming schedule.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started...&quot;</span><span class="p">)</span>
+            <span class="c1"># Bootstrap: since we are just starting up, we need to grab the</span>
+            <span class="c1"># most recent schedule.  After that we can just wait for updates.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">get_shows_to_record</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">temp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">process_recorder_schedule</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Bootstrap recorder schedule received: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">temp</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Bootstrap complete: got initial copy of the schedule&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">loops</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">heartbeat_period</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="mi">30</span> <span class="o">/</span> <span class="n">PUSH_INTERVAL</span><span class="p">)</span>
+
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loops</span> <span class="o">*</span> <span class="n">PUSH_INTERVAL</span> <span class="o">&gt;</span> <span class="mi">3600</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">loops</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                    Fetch recorder schedule</span>
+<span class="sd">                    &quot;&quot;&quot;</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">get_shows_to_record</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">temp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">process_recorder_schedule</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;updated recorder schedule received: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">temp</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span> <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span> <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Pypo Recorder Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">PUSH_INTERVAL</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">loops</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span> <span class="p">:</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;traceback: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span></div></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pypo.html">pypo package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,771 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pypo package &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="pypo.media package" href="pypo.media.html" />
+    <link rel="prev" title="Welcome to pypo’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pypo-package">
+<h1>pypo package<a class="headerlink" href="#pypo-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pypo.media.html">pypo.media package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pypo.media.html#subpackages">Subpackages</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pypo.media.html#module-pypo.media">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-eventtypes">
+<span id="pypo-eventtypes-module"></span><h2>pypo.eventtypes module<a class="headerlink" href="#module-eventtypes" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-listenerstat">
+<span id="pypo-listenerstat-module"></span><h2>pypo.listenerstat module<a class="headerlink" href="#module-listenerstat" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="listenerstat.ListenerStat">
+<em class="property">class </em><code class="descclassname">listenerstat.</code><code class="descname">ListenerStat</code><span class="sig-paren">(</span><em>config</em>, <em>logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="attribute">
+<dt id="listenerstat.ListenerStat.HTTP_REQUEST_TIMEOUT">
+<code class="descname">HTTP_REQUEST_TIMEOUT</code><em class="property"> = 30</em><a class="headerlink" href="#listenerstat.ListenerStat.HTTP_REQUEST_TIMEOUT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.get_icecast_stats">
+<code class="descname">get_icecast_stats</code><span class="sig-paren">(</span><em>ip</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.get_icecast_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.get_icecast_stats" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.get_node_text">
+<code class="descname">get_node_text</code><span class="sig-paren">(</span><em>nodelist</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.get_node_text"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.get_node_text" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.get_shoutcast_stats">
+<code class="descname">get_shoutcast_stats</code><span class="sig-paren">(</span><em>ip</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.get_shoutcast_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.get_shoutcast_stats" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.get_stream_parameters">
+<code class="descname">get_stream_parameters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.get_stream_parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.get_stream_parameters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.get_stream_server_xml">
+<code class="descname">get_stream_server_xml</code><span class="sig-paren">(</span><em>ip</em>, <em>url</em>, <em>is_shoutcast=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.get_stream_server_xml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.get_stream_server_xml" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.get_stream_stats">
+<code class="descname">get_stream_stats</code><span class="sig-paren">(</span><em>stream_parameters</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.get_stream_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.get_stream_stats" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.push_stream_stats">
+<code class="descname">push_stream_stats</code><span class="sig-paren">(</span><em>stats</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.push_stream_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.push_stream_stats" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="listenerstat.ListenerStat.update_listener_stat_error">
+<code class="descname">update_listener_stat_error</code><span class="sig-paren">(</span><em>stream_id</em>, <em>error</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/listenerstat.html#ListenerStat.update_listener_stat_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#listenerstat.ListenerStat.update_listener_stat_error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-pure">
+<span id="pypo-pure-module"></span><h2>pypo.pure module<a class="headerlink" href="#module-pure" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="pure.date_interval_to_seconds">
+<code class="descclassname">pure.</code><code class="descname">date_interval_to_seconds</code><span class="sig-paren">(</span><em>interval</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pure.html#date_interval_to_seconds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pure.date_interval_to_seconds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert timedelta object into int representing the number of seconds. If
+number of seconds is less than 0, then return 0.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pure.version_cmp">
+<code class="descclassname">pure.</code><code class="descname">version_cmp</code><span class="sig-paren">(</span><em>version1</em>, <em>version2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pure.html#version_cmp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pure.version_cmp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-pypofetch">
+<span id="pypo-pypofetch-module"></span><h2>pypo.pypofetch module<a class="headerlink" href="#module-pypofetch" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pypofetch.PypoFetch">
+<em class="property">class </em><code class="descclassname">pypofetch.</code><code class="descname">PypoFetch</code><span class="sig-paren">(</span><em>pypoFetch_q</em>, <em>pypoPush_q</em>, <em>media_q</em>, <em>telnet_lock</em>, <em>pypo_liquidsoap</em>, <em>config</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="pypofetch.PypoFetch.cache_cleanup">
+<code class="descname">cache_cleanup</code><span class="sig-paren">(</span><em>media</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.cache_cleanup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.cache_cleanup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get list of all files in the cache dir and remove them if they aren’t being used anymore.
+Input dict() media, lists all files that are scheduled or currently playing. Not being in this
+dict() means the file is safe to remove.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.handle_message">
+<code class="descname">handle_message</code><span class="sig-paren">(</span><em>message</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.handle_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.handle_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.is_file_opened">
+<code class="descname">is_file_opened</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.is_file_opened"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.is_file_opened" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.main">
+<code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.manual_schedule_fetch">
+<code class="descname">manual_schedule_fetch</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.manual_schedule_fetch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.manual_schedule_fetch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.persistent_manual_schedule_fetch">
+<code class="descname">persistent_manual_schedule_fetch</code><span class="sig-paren">(</span><em>max_attempts=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.persistent_manual_schedule_fetch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.persistent_manual_schedule_fetch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.process_schedule">
+<code class="descname">process_schedule</code><span class="sig-paren">(</span><em>schedule_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.process_schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.process_schedule" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.regenerate_liquidsoap_conf">
+<code class="descname">regenerate_liquidsoap_conf</code><span class="sig-paren">(</span><em>setting</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.regenerate_liquidsoap_conf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.regenerate_liquidsoap_conf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.restart_liquidsoap">
+<code class="descname">restart_liquidsoap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.restart_liquidsoap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.restart_liquidsoap" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Entry point of the thread</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.sanity_check_media_item">
+<code class="descname">sanity_check_media_item</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.sanity_check_media_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.sanity_check_media_item" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.set_bootstrap_variables">
+<code class="descname">set_bootstrap_variables</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.set_bootstrap_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.set_bootstrap_variables" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.switch_source_temp">
+<code class="descname">switch_source_temp</code><span class="sig-paren">(</span><em>sourcename</em>, <em>status</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.switch_source_temp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.switch_source_temp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.update_liquidsoap_connection_status">
+<code class="descname">update_liquidsoap_connection_status</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#pypofetch.PypoFetch.update_liquidsoap_connection_status" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.update_liquidsoap_station_name">
+<code class="descname">update_liquidsoap_station_name</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#pypofetch.PypoFetch.update_liquidsoap_station_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.update_liquidsoap_stream_format">
+<code class="descname">update_liquidsoap_stream_format</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#pypofetch.PypoFetch.update_liquidsoap_stream_format" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.update_liquidsoap_transition_fade">
+<code class="descname">update_liquidsoap_transition_fade</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#pypofetch.PypoFetch.update_liquidsoap_transition_fade" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofetch.PypoFetch.update_metadata_on_tunein">
+<code class="descname">update_metadata_on_tunein</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#PypoFetch.update_metadata_on_tunein"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.PypoFetch.update_metadata_on_tunein" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="pypofetch.keyboardInterruptHandler">
+<code class="descclassname">pypofetch.</code><code class="descname">keyboardInterruptHandler</code><span class="sig-paren">(</span><em>signum</em>, <em>frame</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofetch.html#keyboardInterruptHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofetch.keyboardInterruptHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-pypofile">
+<span id="pypo-pypofile-module"></span><h2>pypo.pypofile module<a class="headerlink" href="#module-pypofile" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pypofile.PypoFile">
+<em class="property">class </em><code class="descclassname">pypofile.</code><code class="descname">PypoFile</code><span class="sig-paren">(</span><em>schedule_queue</em>, <em>config</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="pypofile.PypoFile.copy_file">
+<code class="descname">copy_file</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile.copy_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile.copy_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy media_item from local library directory to local cache directory.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypofile.PypoFile.get_highest_priority_media_item">
+<code class="descname">get_highest_priority_media_item</code><span class="sig-paren">(</span><em>schedule</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile.get_highest_priority_media_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile.get_highest_priority_media_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get highest priority media_item in the queue. Currently the highest
+priority is decided by how close the start time is to “now”.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypofile.PypoFile.main">
+<code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofile.PypoFile.read_config_file">
+<code class="descname">read_config_file</code><span class="sig-paren">(</span><em>config_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile.read_config_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile.read_config_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the application’s config file located at config_path.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypofile.PypoFile.report_file_size_and_md5_to_airtime">
+<code class="descname">report_file_size_and_md5_to_airtime</code><span class="sig-paren">(</span><em>file_path</em>, <em>file_id</em>, <em>host_name</em>, <em>api_key</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile.report_file_size_and_md5_to_airtime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile.report_file_size_and_md5_to_airtime" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypofile.PypoFile.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypofile.html#PypoFile.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypofile.PypoFile.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Entry point of the thread</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-pypoliqqueue">
+<span id="pypo-pypoliqqueue-module"></span><h2>pypo.pypoliqqueue module<a class="headerlink" href="#module-pypoliqqueue" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pypoliqqueue.PypoLiqQueue">
+<em class="property">class </em><code class="descclassname">pypoliqqueue.</code><code class="descname">PypoLiqQueue</code><span class="sig-paren">(</span><em>q</em>, <em>pypo_liquidsoap</em>, <em>logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliqqueue.html#PypoLiqQueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliqqueue.PypoLiqQueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="pypoliqqueue.PypoLiqQueue.date_interval_to_seconds">
+<code class="descname">date_interval_to_seconds</code><span class="sig-paren">(</span><em>interval</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliqqueue.html#PypoLiqQueue.date_interval_to_seconds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliqqueue.PypoLiqQueue.date_interval_to_seconds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert timedelta object into int representing the number of seconds. If
+number of seconds is less than 0, then return 0.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypoliqqueue.PypoLiqQueue.main">
+<code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliqqueue.html#PypoLiqQueue.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliqqueue.PypoLiqQueue.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliqqueue.PypoLiqQueue.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliqqueue.html#PypoLiqQueue.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliqqueue.PypoLiqQueue.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="pypoliqqueue.keyboardInterruptHandler">
+<code class="descclassname">pypoliqqueue.</code><code class="descname">keyboardInterruptHandler</code><span class="sig-paren">(</span><em>signum</em>, <em>frame</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliqqueue.html#keyboardInterruptHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliqqueue.keyboardInterruptHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-pypoliquidsoap">
+<span id="pypo-pypoliquidsoap-module"></span><h2>pypo.pypoliquidsoap module<a class="headerlink" href="#module-pypoliquidsoap" title="Permalink to this headline">¶</a></h2>
+<dl class="exception">
+<dt id="pypoliquidsoap.NoQueueAvailableException">
+<em class="property">exception </em><code class="descclassname">pypoliquidsoap.</code><code class="descname">NoQueueAvailableException</code><a class="reference internal" href="_modules/pypoliquidsoap.html#NoQueueAvailableException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.NoQueueAvailableException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="pypoliquidsoap.PypoLiquidsoap">
+<em class="property">class </em><code class="descclassname">pypoliquidsoap.</code><code class="descname">PypoLiquidsoap</code><span class="sig-paren">(</span><em>logger</em>, <em>telnet_lock</em>, <em>host</em>, <em>port</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.clear_all_queues">
+<code class="descname">clear_all_queues</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.clear_all_queues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.clear_all_queues" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.clear_queue_tracker">
+<code class="descname">clear_queue_tracker</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.clear_queue_tracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.clear_queue_tracker" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.date_interval_to_seconds">
+<code class="descname">date_interval_to_seconds</code><span class="sig-paren">(</span><em>interval</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.date_interval_to_seconds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.date_interval_to_seconds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert timedelta object into int representing the number of seconds. If
+number of seconds is less than 0, then return 0.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.find_available_queue">
+<code class="descname">find_available_queue</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.find_available_queue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.find_available_queue" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.get_telnet_dispatcher">
+<code class="descname">get_telnet_dispatcher</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.get_telnet_dispatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.get_telnet_dispatcher" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.handle_event_type">
+<code class="descname">handle_event_type</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.handle_event_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.handle_event_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.handle_file_type">
+<code class="descname">handle_file_type</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.handle_file_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.handle_file_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait 200 seconds (2000 iterations) for file to become ready, 
+otherwise give up on it.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.is_file">
+<code class="descname">is_file</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.is_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.is_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.is_media_item_finished">
+<code class="descname">is_media_item_finished</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.is_media_item_finished"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.is_media_item_finished" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.modify_cue_point">
+<code class="descname">modify_cue_point</code><span class="sig-paren">(</span><em>link</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.modify_cue_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.modify_cue_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.play">
+<code class="descname">play</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.play"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.play" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><em>queue</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypoliquidsoap.PypoLiquidsoap.verify_correct_present_media">
+<code class="descname">verify_correct_present_media</code><span class="sig-paren">(</span><em>scheduled_now</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypoliquidsoap.html#PypoLiquidsoap.verify_correct_present_media"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.PypoLiquidsoap.verify_correct_present_media" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="pypoliquidsoap.UnknownMediaItemType">
+<em class="property">exception </em><code class="descclassname">pypoliquidsoap.</code><code class="descname">UnknownMediaItemType</code><a class="reference internal" href="_modules/pypoliquidsoap.html#UnknownMediaItemType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypoliquidsoap.UnknownMediaItemType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-pypomessagehandler">
+<span id="pypo-pypomessagehandler-module"></span><h2>pypo.pypomessagehandler module<a class="headerlink" href="#module-pypomessagehandler" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pypomessagehandler.PypoMessageHandler">
+<em class="property">class </em><code class="descclassname">pypomessagehandler.</code><code class="descname">PypoMessageHandler</code><span class="sig-paren">(</span><em>pq</em>, <em>rq</em>, <em>config</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypomessagehandler.html#PypoMessageHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypomessagehandler.PypoMessageHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="pypomessagehandler.PypoMessageHandler.handle_message">
+<code class="descname">handle_message</code><span class="sig-paren">(</span><em>message</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypomessagehandler.html#PypoMessageHandler.handle_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypomessagehandler.PypoMessageHandler.handle_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypomessagehandler.PypoMessageHandler.init_rabbit_mq">
+<code class="descname">init_rabbit_mq</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypomessagehandler.html#PypoMessageHandler.init_rabbit_mq"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypomessagehandler.PypoMessageHandler.init_rabbit_mq" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypomessagehandler.PypoMessageHandler.main">
+<code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypomessagehandler.html#PypoMessageHandler.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypomessagehandler.PypoMessageHandler.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypomessagehandler.PypoMessageHandler.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypomessagehandler.html#PypoMessageHandler.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypomessagehandler.PypoMessageHandler.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-pypopush">
+<span id="pypo-pypopush-module"></span><h2>pypo.pypopush module<a class="headerlink" href="#module-pypopush" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pypopush.PypoPush">
+<em class="property">class </em><code class="descclassname">pypopush.</code><code class="descname">PypoPush</code><span class="sig-paren">(</span><em>q</em>, <em>telnet_lock</em>, <em>pypo_liquidsoap</em>, <em>config</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#PypoPush"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.PypoPush" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="pypopush.PypoPush.date_interval_to_seconds">
+<code class="descname">date_interval_to_seconds</code><span class="sig-paren">(</span><em>interval</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#PypoPush.date_interval_to_seconds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.PypoPush.date_interval_to_seconds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert timedelta object into int representing the number of seconds. If
+number of seconds is less than 0, then return 0.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pypopush.PypoPush.main">
+<code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#PypoPush.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.PypoPush.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypopush.PypoPush.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#PypoPush.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.PypoPush.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypopush.PypoPush.separate_present_future">
+<code class="descname">separate_present_future</code><span class="sig-paren">(</span><em>media_schedule</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#PypoPush.separate_present_future"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.PypoPush.separate_present_future" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pypopush.PypoPush.stop_web_stream_all">
+<code class="descname">stop_web_stream_all</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#pypopush.PypoPush.stop_web_stream_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="pypopush.is_file">
+<code class="descclassname">pypopush.</code><code class="descname">is_file</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#is_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.is_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="pypopush.is_stream">
+<code class="descclassname">pypopush.</code><code class="descname">is_stream</code><span class="sig-paren">(</span><em>media_item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pypopush.html#is_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pypopush.is_stream" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-recorder">
+<span id="pypo-recorder-module"></span><h2>pypo.recorder module<a class="headerlink" href="#module-recorder" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="recorder.Recorder">
+<em class="property">class </em><code class="descclassname">recorder.</code><code class="descname">Recorder</code><span class="sig-paren">(</span><em>q</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="recorder.Recorder.cancel_recording">
+<code class="descname">cancel_recording</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.cancel_recording"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.cancel_recording" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.Recorder.currently_recording">
+<code class="descname">currently_recording</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.currently_recording"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.currently_recording" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.Recorder.get_time_till_next_show">
+<code class="descname">get_time_till_next_show</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.get_time_till_next_show"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.get_time_till_next_show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.Recorder.handle_message">
+<code class="descname">handle_message</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.handle_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.handle_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.Recorder.process_recorder_schedule">
+<code class="descname">process_recorder_schedule</code><span class="sig-paren">(</span><em>m</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.process_recorder_schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.process_recorder_schedule" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.Recorder.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main loop of the thread:
+Wait for schedule updates from RabbitMQ, but in case there arent any,
+poll the server to get the upcoming schedule.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="recorder.Recorder.start_record">
+<code class="descname">start_record</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#Recorder.start_record"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.Recorder.start_record" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="recorder.ShowRecorder">
+<em class="property">class </em><code class="descclassname">recorder.</code><code class="descname">ShowRecorder</code><span class="sig-paren">(</span><em>show_instance</em>, <em>show_name</em>, <em>filelength</em>, <em>start_time</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></code></p>
+<dl class="method">
+<dt id="recorder.ShowRecorder.cancel_recording">
+<code class="descname">cancel_recording</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder.cancel_recording"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder.cancel_recording" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.ShowRecorder.is_recording">
+<code class="descname">is_recording</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder.is_recording"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder.is_recording" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.ShowRecorder.record_show">
+<code class="descname">record_show</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder.record_show"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder.record_show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.ShowRecorder.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="recorder.ShowRecorder.set_metadata_and_save">
+<code class="descname">set_metadata_and_save</code><span class="sig-paren">(</span><em>filepath</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder.set_metadata_and_save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder.set_metadata_and_save" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Writes song to ‘filepath’. Uses metadata from:</dt>
+<dd>self.start_time, self.show_name, self.show_instance</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="recorder.ShowRecorder.upload_file">
+<code class="descname">upload_file</code><span class="sig-paren">(</span><em>filepath</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#ShowRecorder.upload_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.ShowRecorder.upload_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="recorder.api_client">
+<code class="descclassname">recorder.</code><code class="descname">api_client</code><span class="sig-paren">(</span><em>logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#api_client"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.api_client" title="Permalink to this definition">¶</a></dt>
+<dd><p>api_client returns the correct instance of AirtimeApiClient. Although there is only one
+instance to choose from at the moment.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="recorder.getDateTimeObj">
+<code class="descclassname">recorder.</code><code class="descname">getDateTimeObj</code><span class="sig-paren">(</span><em>time</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/recorder.html#getDateTimeObj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#recorder.getDateTimeObj" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-telnetliquidsoap">
+<span id="pypo-telnetliquidsoap-module"></span><h2>pypo.telnetliquidsoap module<a class="headerlink" href="#module-telnetliquidsoap" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="telnetliquidsoap.DummyTelnetLiquidsoap">
+<em class="property">class </em><code class="descclassname">telnetliquidsoap.</code><code class="descname">DummyTelnetLiquidsoap</code><span class="sig-paren">(</span><em>telnet_lock</em>, <em>logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/telnetliquidsoap.html#DummyTelnetLiquidsoap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#telnetliquidsoap.DummyTelnetLiquidsoap" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="telnetliquidsoap.DummyTelnetLiquidsoap.queue_push">
+<code class="descname">queue_push</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.DummyTelnetLiquidsoap.queue_push" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.DummyTelnetLiquidsoap.queue_remove">
+<code class="descname">queue_remove</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.DummyTelnetLiquidsoap.queue_remove" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="telnetliquidsoap.QueueNotEmptyException">
+<em class="property">exception </em><code class="descclassname">telnetliquidsoap.</code><code class="descname">QueueNotEmptyException</code><a class="reference internal" href="_modules/telnetliquidsoap.html#QueueNotEmptyException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#telnetliquidsoap.QueueNotEmptyException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="telnetliquidsoap.TelnetLiquidsoap">
+<em class="property">class </em><code class="descclassname">telnetliquidsoap.</code><code class="descname">TelnetLiquidsoap</code><span class="sig-paren">(</span><em>telnet_lock</em>, <em>logger</em>, <em>ls_host</em>, <em>ls_port</em>, <em>queues</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/telnetliquidsoap.html#TelnetLiquidsoap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.disconnect_source">
+<code class="descname">disconnect_source</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.disconnect_source" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.get_current_stream_id">
+<code class="descname">get_current_stream_id</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.get_current_stream_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.queue_clear_all">
+<code class="descname">queue_clear_all</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.queue_clear_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.queue_push">
+<code class="descname">queue_push</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.queue_push" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.queue_remove">
+<code class="descname">queue_remove</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.queue_remove" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.start_web_stream">
+<code class="descname">start_web_stream</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.start_web_stream" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.start_web_stream_buffer">
+<code class="descname">start_web_stream_buffer</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.start_web_stream_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.stop_web_stream_buffer">
+<code class="descname">stop_web_stream_buffer</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.stop_web_stream_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.stop_web_stream_output">
+<code class="descname">stop_web_stream_output</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.stop_web_stream_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.switch_source">
+<code class="descname">switch_source</code><span class="sig-paren">(</span><em>sourcename</em>, <em>status</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/telnetliquidsoap.html#TelnetLiquidsoap.switch_source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.switch_source" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="telnetliquidsoap.TelnetLiquidsoap.telnet_send">
+<code class="descname">telnet_send</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#telnetliquidsoap.TelnetLiquidsoap.telnet_send" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="telnetliquidsoap.create_liquidsoap_annotation">
+<code class="descclassname">telnetliquidsoap.</code><code class="descname">create_liquidsoap_annotation</code><span class="sig-paren">(</span><em>media</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/telnetliquidsoap.html#create_liquidsoap_annotation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#telnetliquidsoap.create_liquidsoap_annotation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="pypo-testpypoliqqueue-module">
+<h2>pypo.testpypoliqqueue module<a class="headerlink" href="#pypo-testpypoliqqueue-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-timeout">
+<span id="pypo-timeout-module"></span><h2>pypo.timeout module<a class="headerlink" href="#module-timeout" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="timeout.ls_timeout">
+<code class="descclassname">timeout.</code><code class="descname">ls_timeout</code><span class="sig-paren">(</span><em>f</em>, <em>timeout=15</em>, <em>default=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/timeout.html#ls_timeout"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#timeout.ls_timeout" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-pypo">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-pypo" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">pypo package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pypo.media.html">pypo.media package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-eventtypes">pypo.eventtypes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-listenerstat">pypo.listenerstat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pure">pypo.pure module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypofetch">pypo.pypofetch module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypofile">pypo.pypofile module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypoliqqueue">pypo.pypoliqqueue module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypoliquidsoap">pypo.pypoliquidsoap module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypomessagehandler">pypo.pypomessagehandler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypopush">pypo.pypopush module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-recorder">pypo.recorder module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-telnetliquidsoap">pypo.telnetliquidsoap module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pypo-testpypoliqqueue-module">pypo.testpypoliqqueue module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-timeout">pypo.timeout module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pypo">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to pypo’s documentation!</a></li>
+      <li>Next: <a href="pypo.media.html" title="next chapter">pypo.media package</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/pypo.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

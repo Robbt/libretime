@@ -1,0 +1,621 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pypofetch &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pypofetch</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging.config</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">telnetlib</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">signal</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">pure</span>
+<span class="kn">import</span> <span class="nn">mimetypes</span>
+<span class="kn">from</span> <span class="nn">Queue</span> <span class="k">import</span> <span class="n">Empty</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span><span class="p">,</span> <span class="n">Timer</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="k">import</span> <span class="n">Popen</span><span class="p">,</span> <span class="n">PIPE</span>
+
+<span class="kn">from</span> <span class="nn">api_clients</span> <span class="k">import</span> <span class="n">api_client</span>
+<span class="kn">from</span> <span class="nn">timeout</span> <span class="k">import</span> <span class="n">ls_timeout</span>
+
+
+<div class="viewcode-block" id="keyboardInterruptHandler"><a class="viewcode-back" href="../pypo.html#pypofetch.keyboardInterruptHandler">[docs]</a><span class="k">def</span> <span class="nf">keyboardInterruptHandler</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Keyboard Interrupt</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+<span class="n">signal</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">keyboardInterruptHandler</span><span class="p">)</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">captureWarnings</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">POLL_INTERVAL</span> <span class="o">=</span> <span class="mi">480</span>
+
+<div class="viewcode-block" id="PypoFetch"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch">[docs]</a><span class="k">class</span> <span class="nc">PypoFetch</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pypoFetch_q</span><span class="p">,</span> <span class="n">pypoPush_q</span><span class="p">,</span> <span class="n">media_q</span><span class="p">,</span> <span class="n">telnet_lock</span><span class="p">,</span> <span class="n">pypo_liquidsoap</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1">#Hacky...</span>
+        <span class="n">PypoFetch</span><span class="o">.</span><span class="n">ref</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span> <span class="o">=</span> <span class="n">api_client</span><span class="o">.</span><span class="n">AirtimeApiClient</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fetch_queue</span> <span class="o">=</span> <span class="n">pypoFetch_q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push_queue</span> <span class="o">=</span> <span class="n">pypoPush_q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">media_prepare_queue</span> <span class="o">=</span> <span class="n">media_q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_update_schedule_timestamp</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span> <span class="o">=</span> <span class="n">POLL_INTERVAL</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span> <span class="o">=</span> <span class="n">telnet_lock</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span> <span class="o">=</span> <span class="n">pypo_liquidsoap</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;cache_dir&quot;</span><span class="p">],</span> <span class="s2">&quot;scheduler&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Cache dir </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="nb">dir</span><span class="p">):</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                We get here if path does not exist, or path does exist but</span>
+<span class="sd">                is a file. We are not handling the second case, but don&#39;t</span>
+<span class="sd">                think we actually care about handling it.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Cache dir does not exist. Creating...&quot;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PypoFetch: init complete&quot;</span><span class="p">)</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Handle a message from RabbitMQ, put it into our yucky global var.</span>
+<span class="sd">    Hopefully there is a better way to do this.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PypoFetch.handle_message"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.handle_message">[docs]</a>    <span class="k">def</span> <span class="nf">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Received event from Pypo Message Handler: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">message</span><span class="p">)</span>
+
+            <span class="n">m</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;event_type&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Handling command: &quot;</span> <span class="o">+</span> <span class="n">command</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;update_schedule&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">schedule_data</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;schedule&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">process_schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schedule_data</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;reset_liquidsoap_bootstrap&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_bootstrap_variables</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;update_stream_setting&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updating stream setting...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">regenerate_liquidsoap_conf</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;setting&#39;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;update_stream_format&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updating stream format...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_liquidsoap_stream_format</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;stream_format&#39;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;update_station_name&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updating station name...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_liquidsoap_station_name</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;station_name&#39;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;update_transition_fade&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updating transition_fade...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_liquidsoap_transition_fade</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;transition_fade&#39;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;switch_source&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;switch_on_source show command received...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span>\
+                        <span class="n">get_telnet_dispatcher</span><span class="p">()</span><span class="o">.</span>\
+                        <span class="n">switch_source</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;sourcename&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;disconnect_source&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;disconnect_on_source show command received...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span><span class="n">get_telnet_dispatcher</span><span class="p">()</span><span class="o">.</span>\
+                        <span class="n">disconnect_source</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;sourcename&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unknown command: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">command</span><span class="p">)</span>
+
+            <span class="c1"># update timeout value</span>
+            <span class="k">if</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;update_schedule&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span> <span class="o">=</span> <span class="n">POLL_INTERVAL</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_update_schedule_timestamp</span> <span class="o">-</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="n">POLL_INTERVAL</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;New timeout: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;traceback: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Exception in handling Message Handler message: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PypoFetch.switch_source_temp"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.switch_source_temp">[docs]</a>    <span class="k">def</span> <span class="nf">switch_source_temp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourcename</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Switching source: </span><span class="si">%s</span><span class="s1"> to &quot;</span><span class="si">%s</span><span class="s1">&quot; status&#39;</span><span class="p">,</span> <span class="n">sourcename</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;streams.&quot;</span>
+        <span class="k">if</span> <span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;master_dj&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;master_dj_&quot;</span>
+        <span class="k">elif</span> <span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;live_dj&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;live_dj_&quot;</span>
+        <span class="k">elif</span> <span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;scheduled_play&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;scheduled_play_&quot;</span>
+
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;start</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;stop</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="k">return</span> <span class="n">command</span></div>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Initialize Liquidsoap environment</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PypoFetch.set_bootstrap_variables"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.set_bootstrap_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_bootstrap_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Getting information needed on bootstrap from Airtime&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">get_bootstrap_info</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to get bootstrap info.. Exiting pypo...&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;info:</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+        <span class="n">commands</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;switch_status&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="n">commands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">switch_source_temp</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+
+        <span class="n">stream_format</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;stream_label&#39;</span><span class="p">]</span>
+        <span class="n">station_name</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;station_name&#39;</span><span class="p">]</span>
+        <span class="n">fade</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;transition_fade&#39;</span><span class="p">]</span>
+
+        <span class="n">commands</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;vars.stream_metadata_type </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">stream_format</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">commands</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;vars.station_name </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">station_name</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">commands</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;vars.default_dj_fade </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">fade</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span><span class="n">get_telnet_dispatcher</span><span class="p">()</span><span class="o">.</span><span class="n">telnet_send</span><span class="p">(</span><span class="n">commands</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span><span class="n">clear_all_queues</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span><span class="n">clear_queue_tracker</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PypoFetch.restart_liquidsoap"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.restart_liquidsoap">[docs]</a>    <span class="k">def</span> <span class="nf">restart_liquidsoap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;do not block - if we receive the lock then good - no other thread</span>
+<span class="sd">            will try communicating with Liquidsoap. If we don&#39;t receive, it may</span>
+<span class="sd">            mean some thread blocked and is still holding the lock. Restarting</span>
+<span class="sd">            Liquidsoap will cause that thread to release the lock as an Exception</span>
+<span class="sd">            will be thrown.&quot;&quot;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Restarting Liquidsoap&quot;</span><span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;kill -9 `pidof airtime-liquidsoap`&#39;</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">close_fds</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1">#Wait here and poll Liquidsoap until it has started up</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for Liquidsoap to start&quot;</span><span class="p">)</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_host&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_port&#39;</span><span class="p">])</span>
+                    <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Liquidsoap is up and running&quot;</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="c1">#sleep 0.5 seconds and try again</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">locked</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span></div>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    NOTE: This function is quite short after it was refactored.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PypoFetch.regenerate_liquidsoap_conf"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.regenerate_liquidsoap_conf">[docs]</a>    <span class="k">def</span> <span class="nf">regenerate_liquidsoap_conf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setting</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restart_liquidsoap</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_liquidsoap_connection_status</span><span class="p">()</span></div>
+
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">update_liquidsoap_connection_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        updates the status of Liquidsoap connection to the streaming server</span>
+<span class="sd">        This function updates the bootup time variable in Liquidsoap script</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_host&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_port&#39;</span><span class="p">])</span>
+            <span class="c1"># update the boot up time of Liquidsoap. Since Liquidsoap is not restarting,</span>
+            <span class="c1"># we are manually adjusting the bootup time variable so the status msg will get</span>
+            <span class="c1"># updated.</span>
+            <span class="n">current_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">boot_up_time_command</span> <span class="o">=</span> <span class="s2">&quot;vars.bootup_time &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">current_time</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">boot_up_time_command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">boot_up_time_command</span><span class="p">)</span>
+
+            <span class="n">connection_status</span> <span class="o">=</span> <span class="s2">&quot;streams.connection_status</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">connection_status</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">connection_status</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;exit</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="n">output</span> <span class="o">=</span> <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+        <span class="n">output_list</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">stream_info</span> <span class="o">=</span> <span class="n">output_list</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># streamin info is in the form of:</span>
+        <span class="c1"># eg. s1:true,2:true,3:false</span>
+        <span class="n">streams</span> <span class="o">=</span> <span class="n">stream_info</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">streams</span><span class="p">)</span>
+
+        <span class="n">fake_time</span> <span class="o">=</span> <span class="n">current_time</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">streams</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+            <span class="n">stream_id</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span><span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">notify_liquidsoap_status</span><span class="p">(</span><span class="s2">&quot;OK&quot;</span><span class="p">,</span> <span class="n">stream_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">fake_time</span><span class="p">))</span>
+
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">update_liquidsoap_stream_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_format</span><span class="p">):</span>
+        <span class="c1"># Push stream metadata to liquidsoap</span>
+        <span class="c1"># TODO: THIS LIQUIDSOAP STUFF NEEDS TO BE MOVED TO PYPO-PUSH!!!</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_host&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_port&#39;</span><span class="p">])</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;vars.stream_metadata_type </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">stream_format</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;exit</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Exception </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">update_liquidsoap_transition_fade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fade</span><span class="p">):</span>
+        <span class="c1"># Push stream metadata to liquidsoap</span>
+        <span class="c1"># TODO: THIS LIQUIDSOAP STUFF NEEDS TO BE MOVED TO PYPO-PUSH!!!</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_host&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_port&#39;</span><span class="p">])</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;vars.default_dj_fade </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">fade</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;exit</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Exception </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">update_liquidsoap_station_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">station_name</span><span class="p">):</span>
+        <span class="c1"># Push stream metadata to liquidsoap</span>
+        <span class="c1"># TODO: THIS LIQUIDSOAP STUFF NEEDS TO BE MOVED TO PYPO-PUSH!!!</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+                <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_host&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;ls_port&#39;</span><span class="p">])</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;vars.station_name </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">station_name</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+                <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+                <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;exit</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Exception </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process the schedule</span>
+<span class="sd">     - Reads the scheduled entries of a given range (actual time +/- &quot;prepare_ahead&quot; / &quot;cache_for&quot;)</span>
+<span class="sd">     - Saves a serialized file of the schedule</span>
+<span class="sd">     - playlists are prepared. (brought to liquidsoap format) and, if not mounted via nsf, files are copied</span>
+<span class="sd">       to the cache dir (Folder-structure: cache/YYYY-MM-DD-hh-mm-ss)</span>
+<span class="sd">     - runs the cleanup routine, to get rid of unused cached files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PypoFetch.process_schedule"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.process_schedule">[docs]</a>    <span class="k">def</span> <span class="nf">process_schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_update_schedule_timestamp</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">schedule_data</span><span class="p">)</span>
+        <span class="n">media</span> <span class="o">=</span> <span class="n">schedule_data</span><span class="p">[</span><span class="s2">&quot;media&quot;</span><span class="p">]</span>
+        <span class="n">media_filtered</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Download all the media and put playlists in liquidsoap &quot;annotate&quot; format</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Make sure cache_dir exists</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">download_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_dir</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">download_dir</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+            <span class="n">media_copy</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">media</span><span class="p">:</span>
+                <span class="n">media_item</span> <span class="o">=</span> <span class="n">media</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">):</span>
+                    <span class="n">fileExt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sanity_check_media_item</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+                    <span class="n">dst</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">download_dir</span><span class="p">,</span> <span class="n">unicode</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="n">unicode</span><span class="p">(</span><span class="n">fileExt</span><span class="p">))</span>
+                    <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;dst&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dst</span>
+                    <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;file_ready&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">media_filtered</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">media_item</span>
+
+                <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">],</span> 
+                        <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">-%H-%M-%S&quot;</span><span class="p">)</span>
+                <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">],</span> 
+                        <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">-%H-%M-%S&quot;</span><span class="p">)</span>
+                <span class="n">media_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">media_item</span>
+
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">media_prepare_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">media_filtered</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># Send the data to pypo-push</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pushing to pypo-push&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">media_copy</span><span class="p">)</span>
+
+
+        <span class="c1"># cleanup</span>
+        <span class="k">try</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_cleanup</span><span class="p">(</span><span class="n">media</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span></div>
+
+    <span class="c1">#do basic validation of file parameters. Useful for debugging</span>
+    <span class="c1">#purposes</span>
+<div class="viewcode-block" id="PypoFetch.sanity_check_media_item"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.sanity_check_media_item">[docs]</a>    <span class="k">def</span> <span class="nf">sanity_check_media_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">],</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">-%H-%M-%S&quot;</span><span class="p">)</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">],</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">-%H-%M-%S&quot;</span><span class="p">)</span>
+
+        <span class="n">mime</span> <span class="o">=</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;mime&#39;</span><span class="p">]</span>
+        <span class="n">mimetypes</span><span class="o">.</span><span class="n">init</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">/mime.types&quot;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))])</span>
+        <span class="n">mime_ext</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_extension</span><span class="p">(</span><span class="n">mime</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">length1</span> <span class="o">=</span> <span class="n">pure</span><span class="o">.</span><span class="n">date_interval_to_seconds</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span>
+        <span class="n">length2</span> <span class="o">=</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;cue_out&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;cue_in&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">length2</span> <span class="o">-</span> <span class="n">length1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;end - start length: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">length1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;cue_out - cue_in length: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">length2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Two lengths are not equal!!!&quot;</span><span class="p">)</span>
+
+        <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;file_ext&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mime_ext</span>
+
+        <span class="k">return</span> <span class="n">mime_ext</span></div>
+
+<div class="viewcode-block" id="PypoFetch.is_file_opened"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.is_file_opened">[docs]</a>    <span class="k">def</span> <span class="nf">is_file_opened</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="c1">#Capture stderr to avoid polluting py-interpreter.log</span>
+        <span class="n">proc</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;lsof&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">proc</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">out</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PypoFetch.cache_cleanup"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.cache_cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cache_cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get list of all files in the cache dir and remove them if they aren&#39;t being used anymore.</span>
+<span class="sd">        Input dict() media, lists all files that are scheduled or currently playing. Not being in this</span>
+<span class="sd">        dict() means the file is safe to remove.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cached_file_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">))</span>
+        <span class="n">scheduled_file_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">mkey</span> <span class="ow">in</span> <span class="n">media</span><span class="p">:</span>
+            <span class="n">media_item</span> <span class="o">=</span> <span class="n">media</span><span class="p">[</span><span class="n">mkey</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span>
+                <span class="n">scheduled_file_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">unicode</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span> <span class="o">+</span> <span class="n">unicode</span><span class="p">(</span><span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;file_ext&quot;</span><span class="p">]))</span>
+
+        <span class="n">expired_files</span> <span class="o">=</span> <span class="n">cached_file_set</span> <span class="o">-</span> <span class="n">scheduled_file_set</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Files to remove &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">expired_files</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">expired_files</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Removing </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+
+                <span class="c1">#check if this file is opened (sometimes Liquidsoap is still</span>
+                <span class="c1">#playing the file due to our knowledge of the track length</span>
+                <span class="c1">#being incorrect!)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_file_opened</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;File &#39;</span><span class="si">%s</span><span class="s2">&#39; removed&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;File &#39;</span><span class="si">%s</span><span class="s2">&#39; not removed. Still busy!&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Problem removing file &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="n">f</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="PypoFetch.manual_schedule_fetch"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.manual_schedule_fetch">[docs]</a>    <span class="k">def</span> <span class="nf">manual_schedule_fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">get_schedule</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">process_schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schedule_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">success</span></div>
+
+<div class="viewcode-block" id="PypoFetch.persistent_manual_schedule_fetch"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.persistent_manual_schedule_fetch">[docs]</a>    <span class="k">def</span> <span class="nf">persistent_manual_schedule_fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">num_attempts</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">success</span> <span class="ow">and</span> <span class="n">num_attempts</span> <span class="o">&lt;</span> <span class="n">max_attempts</span><span class="p">:</span>
+            <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manual_schedule_fetch</span><span class="p">()</span>
+            <span class="n">num_attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">success</span></div>
+
+    <span class="c1"># This function makes a request to Airtime to see if we need to</span>
+    <span class="c1"># push metadata to TuneIn. We have to do this because TuneIn turns</span>
+    <span class="c1"># off metadata if it does not receive a request every 5 minutes.</span>
+<div class="viewcode-block" id="PypoFetch.update_metadata_on_tunein"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.update_metadata_on_tunein">[docs]</a>    <span class="k">def</span> <span class="nf">update_metadata_on_tunein</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">update_metadata_on_tunein</span><span class="p">()</span>
+        <span class="n">Timer</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_metadata_on_tunein</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PypoFetch.main"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.main">[docs]</a>    <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#Make sure all Liquidsoap queues are empty. This is important in the</span>
+        <span class="c1">#case where we&#39;ve just restarted the pypo scheduler, but Liquidsoap still</span>
+        <span class="c1">#is playing tracks. In this case let&#39;s just restart everything from scratch</span>
+        <span class="c1">#so that we can repopulate our dictionary that keeps track of what </span>
+        <span class="c1">#Liquidsoap is playing much more easily.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span><span class="n">clear_all_queues</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_bootstrap_variables</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_metadata_on_tunein</span><span class="p">()</span>
+
+        <span class="c1"># Bootstrap: since we are just starting up, we need to grab the</span>
+        <span class="c1"># most recent schedule.  After that we fetch the schedule every 8</span>
+        <span class="c1"># minutes or wait for schedule updates to get pushed.</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">persistent_manual_schedule_fetch</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Bootstrap schedule received: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_data</span><span class="p">)</span>
+
+        <span class="n">loops</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loop #</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">loops</span><span class="p">)</span>
+            <span class="n">manual_fetch_needed</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                our simple_queue.get() requires a timeout, in which case we</span>
+<span class="sd">                fetch the Airtime schedule manually. It is important to fetch</span>
+<span class="sd">                the schedule periodically because if we didn&#39;t, we would only</span>
+<span class="sd">                get schedule updates via RabbitMq if the user was constantly</span>
+<span class="sd">                using the Airtime interface.</span>
+
+<span class="sd">                If the user is not using the interface, RabbitMq messages are not</span>
+<span class="sd">                sent, and we will have very stale (or non-existent!) data about the</span>
+<span class="sd">                schedule.</span>
+
+<span class="sd">                Currently we are checking every POLL_INTERVAL seconds</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+
+                <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetch_queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">listener_timeout</span><span class="p">)</span>
+                <span class="n">manual_fetch_needed</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">Empty</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Queue timeout. Fetching schedule manually&quot;</span><span class="p">)</span>
+                <span class="n">manual_fetch_needed</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;traceback: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">manual_fetch_needed</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">persistent_manual_schedule_fetch</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to manually fetch the schedule.&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;traceback: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span>
+
+            <span class="n">loops</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="PypoFetch.run"><a class="viewcode-back" href="../pypo.html#pypofetch.PypoFetch.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Entry point of the thread</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;PypoFetch thread exiting&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pypo.html">pypo package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

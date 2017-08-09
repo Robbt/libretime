@@ -1,0 +1,429 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>telnetliquidsoap &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for telnetliquidsoap</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">telnetlib</span>
+<span class="kn">from</span> <span class="nn">timeout</span> <span class="k">import</span> <span class="n">ls_timeout</span>
+
+<div class="viewcode-block" id="create_liquidsoap_annotation"><a class="viewcode-back" href="../pypo.html#telnetliquidsoap.create_liquidsoap_annotation">[docs]</a><span class="k">def</span> <span class="nf">create_liquidsoap_annotation</span><span class="p">(</span><span class="n">media</span><span class="p">):</span>
+    <span class="c1"># We need liq_start_next value in the annotate. That is the value that controls overlap duration of crossfade.</span>
+
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">media</span><span class="p">[</span><span class="s1">&#39;dst&#39;</span><span class="p">]</span>
+    <span class="n">annotation</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;annotate:media_id=&quot;</span><span class="si">%s</span><span class="s1">&quot;,liq_start_next=&quot;0&quot;,liq_fade_in=&quot;</span><span class="si">%s</span><span class="s1">&quot;,&#39;</span> <span class="o">+</span> \
+            <span class="s1">&#39;liq_fade_out=&quot;</span><span class="si">%s</span><span class="s1">&quot;,liq_cue_in=&quot;</span><span class="si">%s</span><span class="s1">&quot;,liq_cue_out=&quot;</span><span class="si">%s</span><span class="s1">&quot;,&#39;</span> <span class="o">+</span> \
+            <span class="s1">&#39;schedule_table_id=&quot;</span><span class="si">%s</span><span class="s1">&quot;,replay_gain=&quot;</span><span class="si">%s</span><span class="s1"> dB&quot;&#39;</span><span class="p">)</span> <span class="o">%</span> \
+            <span class="p">(</span><span class="n">media</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
+                    <span class="nb">float</span><span class="p">(</span><span class="n">media</span><span class="p">[</span><span class="s1">&#39;fade_in&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>
+                    <span class="nb">float</span><span class="p">(</span><span class="n">media</span><span class="p">[</span><span class="s1">&#39;fade_out&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>
+                    <span class="nb">float</span><span class="p">(</span><span class="n">media</span><span class="p">[</span><span class="s1">&#39;cue_in&#39;</span><span class="p">]),</span>
+                    <span class="nb">float</span><span class="p">(</span><span class="n">media</span><span class="p">[</span><span class="s1">&#39;cue_out&#39;</span><span class="p">]),</span>
+                    <span class="n">media</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">],</span>
+                    <span class="n">media</span><span class="p">[</span><span class="s1">&#39;replay_gain&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Override the the artist/title that Liquidsoap extracts from a file&#39;s metadata</span>
+    <span class="c1"># with the metadata we get from Airtime. (You can modify metadata in Airtime&#39;s library,</span>
+    <span class="c1"># which doesn&#39;t get saved back to the file.)</span>
+    <span class="k">if</span> <span class="s1">&#39;metadata&#39;</span> <span class="ow">in</span> <span class="n">media</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="s1">&#39;artist_name&#39;</span> <span class="ow">in</span> <span class="n">media</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">]:</span>
+            <span class="n">artist_name</span> <span class="o">=</span> <span class="n">media</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;artist_name&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">artist_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">annotation</span> <span class="o">+=</span> <span class="s1">&#39;,artist=&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">artist_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;track_title&#39;</span> <span class="ow">in</span> <span class="n">media</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">]:</span>
+            <span class="n">track_title</span> <span class="o">=</span>  <span class="n">media</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;track_title&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">track_title</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">annotation</span> <span class="o">+=</span> <span class="s1">&#39;,title=&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">track_title</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">))</span>
+
+    <span class="n">annotation</span> <span class="o">+=</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">filename</span>
+
+    <span class="k">return</span> <span class="n">annotation</span></div>
+
+<div class="viewcode-block" id="TelnetLiquidsoap"><a class="viewcode-back" href="../pypo.html#telnetliquidsoap.TelnetLiquidsoap">[docs]</a><span class="k">class</span> <span class="nc">TelnetLiquidsoap</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">telnet_lock</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">ls_host</span><span class="p">,</span> <span class="n">ls_port</span><span class="p">,</span> <span class="n">queues</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span> <span class="o">=</span> <span class="n">telnet_lock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span> <span class="o">=</span> <span class="n">ls_host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span> <span class="o">=</span> <span class="n">ls_port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queues</span> <span class="o">=</span> <span class="n">queues</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_prebuffering_stream_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_id</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">tn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connect</span><span class="p">()</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.queue</span><span class="se">\n</span><span class="s1">exit</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">queue_id</span>
+        <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unexpected list length returned: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">output</span><span class="p">)</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">queue_clear_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connect</span><span class="p">()</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">queues</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;queues.</span><span class="si">%s</span><span class="s1">_skip</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">queue_remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_id</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connect</span><span class="p">()</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;queues.</span><span class="si">%s</span><span class="s1">_skip</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">queue_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">queue_push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_id</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__is_empty</span><span class="p">(</span><span class="n">queue_id</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">QueueNotEmptyException</span><span class="p">()</span>
+
+            <span class="n">tn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connect</span><span class="p">()</span>
+            <span class="n">annotation</span> <span class="o">=</span> <span class="n">create_liquidsoap_annotation</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.push </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">queue_id</span><span class="p">,</span> <span class="n">annotation</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">show_name</span> <span class="o">=</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;show_name&#39;</span><span class="p">]</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;vars.show_name </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">show_name</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">stop_web_stream_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+            <span class="c1">#dynamic_source.stop http://87.230.101.24:80/top100station.mp3</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;http.stop</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.id -1</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">stop_web_stream_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+            <span class="c1">#dynamic_source.stop http://87.230.101.24:80/top100station.mp3</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.output_stop</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">start_web_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+
+            <span class="c1">#TODO: DO we need this?</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;streams.scheduled_play_start</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.output_start</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_prebuffering_stream_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+        
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">start_web_stream_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.id </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;http.restart </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;uri&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_prebuffering_stream_id</span> <span class="o">=</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">get_current_stream_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.get_id</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">stream_id</span> <span class="o">=</span> <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;stream_id: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">stream_id</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">stream_id</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">disconnect_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourcename</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Disconnecting source: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sourcename</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span><span class="p">(</span><span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;master_dj&quot;</span><span class="p">):</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;master_harbor.kick</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">elif</span><span class="p">(</span><span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;live_dj&quot;</span><span class="p">):</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;live_dj_harbor.kick</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;exit</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">telnet_send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commands</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ls_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ls_port</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">commands</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;exit</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="TelnetLiquidsoap.switch_source"><a class="viewcode-back" href="../pypo.html#telnetliquidsoap.TelnetLiquidsoap.switch_source">[docs]</a>    <span class="k">def</span> <span class="nf">switch_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourcename</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Switching source: </span><span class="si">%s</span><span class="s1"> to &quot;</span><span class="si">%s</span><span class="s1">&quot; status&#39;</span><span class="p">,</span> <span class="n">sourcename</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;streams.&quot;</span>
+        <span class="k">if</span> <span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;master_dj&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;master_dj_&quot;</span>
+        <span class="k">elif</span> <span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;live_dj&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;live_dj_&quot;</span>
+        <span class="k">elif</span> <span class="n">sourcename</span> <span class="o">==</span> <span class="s2">&quot;scheduled_play&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;scheduled_play_&quot;</span>
+
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;start</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;stop</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_send</span><span class="p">([</span><span class="n">command</span><span class="p">])</span></div></div>
+
+<div class="viewcode-block" id="DummyTelnetLiquidsoap"><a class="viewcode-back" href="../pypo.html#telnetliquidsoap.DummyTelnetLiquidsoap">[docs]</a><span class="k">class</span> <span class="nc">DummyTelnetLiquidsoap</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">telnet_lock</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span> <span class="o">=</span> <span class="n">telnet_lock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">liquidsoap_mock_queues</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">liquidsoap_mock_queues</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">queue_push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_id</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Pushing </span><span class="si">%s</span><span class="s2"> to queue </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">media_item</span><span class="p">,</span> <span class="n">queue_id</span><span class="p">))</span>
+            <span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+            <span class="nb">print</span> <span class="s2">&quot;Time now: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+            <span class="n">annotation</span> <span class="o">=</span> <span class="n">create_liquidsoap_annotation</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">liquidsoap_mock_queues</span><span class="p">[</span><span class="n">queue_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">queue_remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_id</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Purging queue </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">queue_id</span><span class="p">)</span>
+            <span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+            <span class="nb">print</span> <span class="s2">&quot;Time now: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="QueueNotEmptyException"><a class="viewcode-back" href="../pypo.html#telnetliquidsoap.QueueNotEmptyException">[docs]</a><span class="k">class</span> <span class="nc">QueueNotEmptyException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pypo.html">pypo package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,254 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pypopush &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pypopush</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">configobj</span> <span class="k">import</span> <span class="n">ConfigObj</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging.config</span>
+<span class="kn">import</span> <span class="nn">telnetlib</span>
+<span class="kn">import</span> <span class="nn">calendar</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">pypofetch</span> <span class="k">import</span> <span class="n">PypoFetch</span>
+<span class="kn">from</span> <span class="nn">pypoliqqueue</span> <span class="k">import</span> <span class="n">PypoLiqQueue</span>
+
+<span class="kn">from</span> <span class="nn">Queue</span> <span class="k">import</span> <span class="n">Empty</span><span class="p">,</span> <span class="n">Queue</span>
+
+<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
+
+<span class="kn">from</span> <span class="nn">api_clients</span> <span class="k">import</span> <span class="n">api_client</span>
+<span class="kn">from</span> <span class="nn">timeout</span> <span class="k">import</span> <span class="n">ls_timeout</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">captureWarnings</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">PUSH_INTERVAL</span> <span class="o">=</span> <span class="mi">2</span>
+
+
+<div class="viewcode-block" id="is_stream"><a class="viewcode-back" href="../pypo.html#pypopush.is_stream">[docs]</a><span class="k">def</span> <span class="nf">is_stream</span><span class="p">(</span><span class="n">media_item</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;stream_output_start&#39;</span></div>
+
+<div class="viewcode-block" id="is_file"><a class="viewcode-back" href="../pypo.html#pypopush.is_file">[docs]</a><span class="k">def</span> <span class="nf">is_file</span><span class="p">(</span><span class="n">media_item</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;file&#39;</span></div>
+
+<div class="viewcode-block" id="PypoPush"><a class="viewcode-back" href="../pypo.html#pypopush.PypoPush">[docs]</a><span class="k">class</span> <span class="nc">PypoPush</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">telnet_lock</span><span class="p">,</span> <span class="n">pypo_liquidsoap</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span> <span class="o">=</span> <span class="n">api_client</span><span class="o">.</span><span class="n">AirtimeApiClient</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue</span> <span class="o">=</span> <span class="n">q</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span> <span class="o">=</span> <span class="n">telnet_lock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pushed_objects</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;push&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_prebuffering_stream_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">future_scheduled_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span> <span class="o">=</span> <span class="n">pypo_liquidsoap</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">plq</span> <span class="o">=</span> <span class="n">PypoLiqQueue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">future_scheduled_queue</span><span class="p">,</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="p">,</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plq</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plq</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="PypoPush.main"><a class="viewcode-back" href="../pypo.html#pypopush.PypoPush.main">[docs]</a>    <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loops</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">heartbeat_period</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="mi">30</span> <span class="o">/</span> <span class="n">PUSH_INTERVAL</span><span class="p">)</span>
+
+        <span class="n">media_schedule</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">media_schedule</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">raise</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">media_schedule</span><span class="p">)</span>
+                <span class="c1">#separate media_schedule list into currently_playing and</span>
+                <span class="c1">#scheduled_for_future lists</span>
+                <span class="n">currently_playing</span><span class="p">,</span> <span class="n">scheduled_for_future</span> <span class="o">=</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">separate_present_future</span><span class="p">(</span><span class="n">media_schedule</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">pypo_liquidsoap</span><span class="o">.</span><span class="n">verify_correct_present_media</span><span class="p">(</span><span class="n">currently_playing</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">future_scheduled_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">scheduled_for_future</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">loops</span> <span class="o">%</span> <span class="n">heartbeat_period</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;heartbeat&quot;</span><span class="p">)</span>
+                <span class="n">loops</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">loops</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="PypoPush.separate_present_future"><a class="viewcode-back" href="../pypo.html#pypopush.PypoPush.separate_present_future">[docs]</a>    <span class="k">def</span> <span class="nf">separate_present_future</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_schedule</span><span class="p">):</span>
+        <span class="n">tnow</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="n">present</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">future</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">sorted_keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">media_schedule</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">mkey</span> <span class="ow">in</span> <span class="n">sorted_keys</span><span class="p">:</span>
+            <span class="n">media_item</span> <span class="o">=</span> <span class="n">media_schedule</span><span class="p">[</span><span class="n">mkey</span><span class="p">]</span>
+
+            <span class="n">diff_td</span> <span class="o">=</span> <span class="n">tnow</span> <span class="o">-</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">]</span>
+            <span class="n">diff_sec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_interval_to_seconds</span><span class="p">(</span><span class="n">diff_td</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">diff_sec</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">present</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">future</span><span class="p">[</span><span class="n">mkey</span><span class="p">]</span> <span class="o">=</span> <span class="n">media_item</span>
+
+        <span class="k">return</span> <span class="n">present</span><span class="p">,</span> <span class="n">future</span></div>
+
+<div class="viewcode-block" id="PypoPush.date_interval_to_seconds"><a class="viewcode-back" href="../pypo.html#pypopush.PypoPush.date_interval_to_seconds">[docs]</a>    <span class="k">def</span> <span class="nf">date_interval_to_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interval</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert timedelta object into int representing the number of seconds. If</span>
+<span class="sd">        number of seconds is less than 0, then return 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">seconds</span> <span class="o">=</span> <span class="p">(</span><span class="n">interval</span><span class="o">.</span><span class="n">microseconds</span> <span class="o">+</span> \
+                   <span class="p">(</span><span class="n">interval</span><span class="o">.</span><span class="n">seconds</span> <span class="o">+</span> <span class="n">interval</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">seconds</span></div>
+
+    <span class="nd">@ls_timeout</span>
+    <span class="k">def</span> <span class="nf">stop_web_stream_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tn</span> <span class="o">=</span> <span class="n">telnetlib</span><span class="o">.</span><span class="n">Telnet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;LS_HOST&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;LS_PORT&#39;</span><span class="p">])</span>
+
+            <span class="c1">#msg = &#39;dynamic_source.read_stop_all xxx\n&#39;</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;http.stop</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.output_stop</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;dynamic_source.id -1</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">tn</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;exit</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">tn</span><span class="o">.</span><span class="n">read_all</span><span class="p">())</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PypoPush.run"><a class="viewcode-back" href="../pypo.html#pypopush.PypoPush.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">top</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Pypo Push Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">top</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;PypoPush thread exiting&#39;</span><span class="p">)</span></div></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pypo.html">pypo package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

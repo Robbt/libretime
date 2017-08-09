@@ -1,0 +1,340 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pypoliquidsoap &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pypoliquidsoap</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pypofetch</span> <span class="k">import</span> <span class="n">PypoFetch</span>
+<span class="kn">from</span> <span class="nn">telnetliquidsoap</span> <span class="k">import</span> <span class="n">TelnetLiquidsoap</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">timedelta</span>
+
+<span class="kn">import</span> <span class="nn">eventtypes</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<div class="viewcode-block" id="PypoLiquidsoap"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap">[docs]</a><span class="k">class</span> <span class="nc">PypoLiquidsoap</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">telnet_lock</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;s0&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;s1&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;s2&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;s3&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;s4&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span> <span class="o">=</span> <span class="n">TelnetLiquidsoap</span><span class="p">(</span><span class="n">telnet_lock</span><span class="p">,</span> \
+                <span class="n">logger</span><span class="p">,</span>\
+                <span class="n">host</span><span class="p">,</span>\
+                <span class="n">port</span><span class="p">,</span>\
+                <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+<div class="viewcode-block" id="PypoLiquidsoap.get_telnet_dispatcher"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.get_telnet_dispatcher">[docs]</a>    <span class="k">def</span> <span class="nf">get_telnet_dispatcher</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span></div>
+
+
+<div class="viewcode-block" id="PypoLiquidsoap.play"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.play">[docs]</a>    <span class="k">def</span> <span class="nf">play</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">FILE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">handle_file_type</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">EVENT</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">handle_event_type</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">STREAM_BUFFER_START</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">start_web_stream_buffer</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">STREAM_OUTPUT_START</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">current_prebuffering_stream_id</span><span class="p">:</span>
+                <span class="c1">#this is called if the stream wasn&#39;t scheduled sufficiently ahead of time</span>
+                <span class="c1">#so that the prebuffering stage could take effect. Let&#39;s do the prebuffering now.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">start_web_stream_buffer</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">start_web_stream</span><span class="p">(</span><span class="n">media_item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">STREAM_BUFFER_END</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">stop_web_stream_buffer</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">STREAM_OUTPUT_END</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">stop_web_stream_output</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="n">UnknownMediaItemType</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">media_item</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.handle_file_type"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.handle_file_type">[docs]</a>    <span class="k">def</span> <span class="nf">handle_file_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait 200 seconds (2000 iterations) for file to become ready, </span>
+<span class="sd">        otherwise give up on it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">iter_num</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;file_ready&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">iter_num</span> <span class="o">&lt;</span> <span class="mi">2000</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+            <span class="n">iter_num</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;file_ready&#39;</span><span class="p">]:</span>
+            <span class="n">available_queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_available_queue</span><span class="p">()</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">queue_push</span><span class="p">(</span><span class="n">available_queue</span><span class="p">,</span> <span class="n">media_item</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">[</span><span class="n">available_queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">media_item</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="k">raise</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;File </span><span class="si">%s</span><span class="s2"> did not become ready in less than 5 seconds. Skipping...&quot;</span><span class="p">,</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;dst&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.handle_event_type"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.handle_event_type">[docs]</a>    <span class="k">def</span> <span class="nf">handle_event_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;event_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;kick_out&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">disconnect_source</span><span class="p">(</span><span class="s2">&quot;live_dj&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;event_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;switch_off&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">switch_source</span><span class="p">(</span><span class="s2">&quot;live_dj&quot;</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PypoLiquidsoap.is_media_item_finished"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.is_media_item_finished">[docs]</a>    <span class="k">def</span> <span class="nf">is_media_item_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">media_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">media_item</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.find_available_queue"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.find_available_queue">[docs]</a>    <span class="k">def</span> <span class="nf">find_available_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">available_queue</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">:</span>
+            <span class="n">mi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">mi</span> <span class="o">==</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_media_item_finished</span><span class="p">(</span><span class="n">mi</span><span class="p">):</span>
+                <span class="c1">#queue &quot;i&quot; is available. Push to this queue</span>
+                <span class="n">available_queue</span> <span class="o">=</span> <span class="n">i</span>
+
+        <span class="k">if</span> <span class="n">available_queue</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NoQueueAvailableException</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">available_queue</span></div>
+
+
+<div class="viewcode-block" id="PypoLiquidsoap.verify_correct_present_media"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.verify_correct_present_media">[docs]</a>    <span class="k">def</span> <span class="nf">verify_correct_present_media</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduled_now</span><span class="p">):</span>
+        <span class="c1">#verify whether Liquidsoap is currently playing the correct files.</span>
+        <span class="c1">#if we find an item that Liquidsoap is not playing, then push it</span>
+        <span class="c1">#into one of Liquidsoap&#39;s queues. If Liquidsoap is already playing</span>
+        <span class="c1">#it do nothing. If Liquidsoap is playing a track that isn&#39;t in</span>
+        <span class="c1">#currently_playing then stop it.</span>
+
+        <span class="c1">#Check for Liquidsoap media we should source.skip</span>
+        <span class="c1">#get liquidsoap items for each queue. Since each queue can only have one</span>
+        <span class="c1">#item, we should have a max of 8 items.</span>
+
+        <span class="c1">#2013-03-21-22-56-00_0: {</span>
+        <span class="c1">#id: 1,</span>
+        <span class="c1">#type: &quot;stream_output_start&quot;,</span>
+        <span class="c1">#row_id: 41,</span>
+        <span class="c1">#uri: &quot;http://stream2.radioblackout.org:80/blackout.ogg&quot;,</span>
+        <span class="c1">#start: &quot;2013-03-21-22-56-00&quot;,</span>
+        <span class="c1">#end: &quot;2013-03-21-23-26-00&quot;,</span>
+        <span class="c1">#show_name: &quot;Untitled Show&quot;,</span>
+        <span class="c1">#independent_event: true</span>
+        <span class="c1">#},</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">scheduled_now_files</span> <span class="o">=</span> \
+                    <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">FILE</span><span class="p">,</span> <span class="n">scheduled_now</span><span class="p">)</span>
+
+            <span class="n">scheduled_now_webstream</span> <span class="o">=</span> \
+                    <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">STREAM_OUTPUT_START</span><span class="p">,</span> \
+                            <span class="n">scheduled_now</span><span class="p">)</span>
+
+            <span class="n">schedule_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">],</span> <span class="n">scheduled_now_files</span><span class="p">))</span>
+
+            <span class="n">row_id_map</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">liq_queue_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">:</span>
+                <span class="n">mi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_media_item_finished</span><span class="p">(</span><span class="n">mi</span><span class="p">):</span>
+                    <span class="n">liq_queue_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mi</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">])</span>
+                    <span class="n">row_id_map</span><span class="p">[</span><span class="n">mi</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">mi</span>
+
+            <span class="n">to_be_removed</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="n">to_be_added</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+            <span class="c1">#Iterate over the new files, and compare them to currently scheduled</span>
+            <span class="c1">#tracks. If already in liquidsoap queue still need to make sure they don&#39;t</span>
+            <span class="c1">#have different attributes</span>
+            <span class="c1">#if replay gain changes, it shouldn&#39;t change the amplification of the currently playing song</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">scheduled_now_files</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">row_id_map</span><span class="p">:</span>
+                    <span class="n">mi</span> <span class="o">=</span> <span class="n">row_id_map</span><span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">]]</span>
+                    <span class="n">correct</span> <span class="o">=</span> <span class="n">mi</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">]</span> <span class="ow">and</span> \
+                            <span class="n">mi</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span> <span class="ow">and</span> \
+                            <span class="n">mi</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">]</span>
+
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">correct</span><span class="p">:</span>
+                        <span class="c1">#need to re-add</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Track </span><span class="si">%s</span><span class="s2"> found to have new attr.&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+                        <span class="n">to_be_removed</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">])</span>
+                        <span class="n">to_be_added</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">])</span>
+
+
+            <span class="n">to_be_removed</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">liq_queue_ids</span> <span class="o">-</span> <span class="n">schedule_ids</span><span class="p">)</span>
+            <span class="n">to_be_added</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">schedule_ids</span> <span class="o">-</span> <span class="n">liq_queue_ids</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">to_be_removed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Need to remove items from Liquidsoap: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> \
+                        <span class="n">to_be_removed</span><span class="p">)</span>
+
+                <span class="c1">#remove files from Liquidsoap&#39;s queue</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">:</span>
+                    <span class="n">mi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">mi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">mi</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">to_be_removed</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">to_be_added</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Need to add items to Liquidsoap *now*: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> \
+                        <span class="n">to_be_added</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">scheduled_now_files</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;row_id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">to_be_added</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">modify_cue_point</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">play</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+            <span class="c1">#handle webstreams</span>
+            <span class="n">current_stream_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">get_current_stream_id</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">scheduled_now_webstream</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">current_stream_id</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">(</span><span class="n">scheduled_now_webstream</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;row_id&quot;</span><span class="p">]):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">play</span><span class="p">(</span><span class="n">scheduled_now_webstream</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">current_stream_id</span> <span class="o">!=</span> <span class="s2">&quot;-1&quot;</span><span class="p">:</span>
+                <span class="c1">#something is playing and it shouldn&#39;t be.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">stop_web_stream_buffer</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">stop_web_stream_output</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error: Malformed event in schedule. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="PypoLiquidsoap.stop"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">queue_remove</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.is_file"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.is_file">[docs]</a>    <span class="k">def</span> <span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">media_item</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">eventtypes</span><span class="o">.</span><span class="n">FILE</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.clear_queue_tracker"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.clear_queue_tracker">[docs]</a>    <span class="k">def</span> <span class="nf">clear_queue_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">liq_queue_tracker</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.modify_cue_point"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.modify_cue_point">[docs]</a>    <span class="k">def</span> <span class="nf">modify_cue_point</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">link</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_file</span><span class="p">(</span><span class="n">link</span><span class="p">)</span>
+
+        <span class="n">tnow</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="n">link_start</span> <span class="o">=</span> <span class="n">link</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">]</span>
+
+        <span class="n">diff_td</span> <span class="o">=</span> <span class="n">tnow</span> <span class="o">-</span> <span class="n">link_start</span>
+        <span class="n">diff_sec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_interval_to_seconds</span><span class="p">(</span><span class="n">diff_td</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">diff_sec</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;media item was supposed to start </span><span class="si">%s</span><span class="s2"> ago. Preparing to start..&quot;</span><span class="p">,</span> <span class="n">diff_sec</span><span class="p">)</span>
+            <span class="n">original_cue_in_td</span> <span class="o">=</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">link</span><span class="p">[</span><span class="s1">&#39;cue_in&#39;</span><span class="p">]))</span>
+            <span class="n">link</span><span class="p">[</span><span class="s1">&#39;cue_in&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_interval_to_seconds</span><span class="p">(</span><span class="n">original_cue_in_td</span><span class="p">)</span> <span class="o">+</span> <span class="n">diff_sec</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.date_interval_to_seconds"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.date_interval_to_seconds">[docs]</a>    <span class="k">def</span> <span class="nf">date_interval_to_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interval</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert timedelta object into int representing the number of seconds. If</span>
+<span class="sd">        number of seconds is less than 0, then return 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">seconds</span> <span class="o">=</span> <span class="p">(</span><span class="n">interval</span><span class="o">.</span><span class="n">microseconds</span> <span class="o">+</span> \
+                   <span class="p">(</span><span class="n">interval</span><span class="o">.</span><span class="n">seconds</span> <span class="o">+</span> <span class="n">interval</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">seconds</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">seconds</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">return</span> <span class="n">seconds</span></div>
+
+<div class="viewcode-block" id="PypoLiquidsoap.clear_all_queues"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.PypoLiquidsoap.clear_all_queues">[docs]</a>    <span class="k">def</span> <span class="nf">clear_all_queues</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">telnet_liquidsoap</span><span class="o">.</span><span class="n">queue_clear_all</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="UnknownMediaItemType"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.UnknownMediaItemType">[docs]</a><span class="k">class</span> <span class="nc">UnknownMediaItemType</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="NoQueueAvailableException"><a class="viewcode-back" href="../pypo.html#pypoliquidsoap.NoQueueAvailableException">[docs]</a><span class="k">class</span> <span class="nc">NoQueueAvailableException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pypo.html">pypo package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

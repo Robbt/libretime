@@ -1,0 +1,271 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>listenerstat &#8212; pypo  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for listenerstat</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
+<span class="kn">import</span> <span class="nn">urllib2</span>
+<span class="kn">import</span> <span class="nn">defusedxml.minidom</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">api_clients</span> <span class="k">import</span> <span class="n">api_client</span>
+
+<div class="viewcode-block" id="ListenerStat"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat">[docs]</a><span class="k">class</span> <span class="nc">ListenerStat</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+
+    <span class="n">HTTP_REQUEST_TIMEOUT</span> <span class="o">=</span> <span class="mi">30</span> <span class="c1"># 30 second HTTP request timeout</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span> <span class="o">=</span> <span class="n">api_client</span><span class="o">.</span><span class="n">AirtimeApiClient</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+
+<div class="viewcode-block" id="ListenerStat.get_node_text"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.get_node_text">[docs]</a>    <span class="k">def</span> <span class="nf">get_node_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">):</span>
+        <span class="n">rc</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodelist</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">nodeType</span> <span class="o">==</span> <span class="n">node</span><span class="o">.</span><span class="n">TEXT_NODE</span><span class="p">:</span>
+                <span class="n">rc</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rc</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ListenerStat.get_stream_parameters"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.get_stream_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_stream_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#[{&quot;user&quot;:&quot;&quot;, &quot;password&quot;:&quot;&quot;, &quot;url&quot;:&quot;&quot;, &quot;port&quot;:&quot;&quot;},{},{}]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">get_stream_parameters</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ListenerStat.get_stream_server_xml"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.get_stream_server_xml">[docs]</a>    <span class="k">def</span> <span class="nf">get_stream_server_xml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ip</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">is_shoutcast</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">encoded</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%(admin_user)s</span><span class="s2">:</span><span class="si">%(admin_pass)s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">ip</span><span class="p">)</span>
+
+        <span class="n">header</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span><span class="s2">&quot;Basic </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">encoded</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">is_shoutcast</span><span class="p">:</span>
+            <span class="c1">#user agent is required for shoutcast auth, otherwise it returns 404.</span>
+            <span class="n">user_agent</span> <span class="o">=</span> <span class="s2">&quot;Mozilla/5.0 (Linux; rv:22.0) Gecko/20130405 Firefox/22.0&quot;</span>
+            <span class="n">header</span><span class="p">[</span><span class="s2">&quot;User-Agent&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">user_agent</span>
+
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span>
+            <span class="c1">#assuming that the icecast stats path is /admin/stats.xml</span>
+            <span class="c1">#need to fix this</span>
+            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">ListenerStat</span><span class="o">.</span><span class="n">HTTP_REQUEST_TIMEOUT</span><span class="p">)</span>
+        <span class="n">document</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">document</span></div>
+
+
+<div class="viewcode-block" id="ListenerStat.get_icecast_stats"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.get_icecast_stats">[docs]</a>    <span class="k">def</span> <span class="nf">get_icecast_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ip</span><span class="p">):</span>
+        <span class="n">document</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;airtime.pro&quot;</span> <span class="ow">in</span> <span class="n">ip</span><span class="p">[</span><span class="s2">&quot;host&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;http://</span><span class="si">%(host)s</span><span class="s1">:</span><span class="si">%(port)s</span><span class="s1">/stats.xsl&#39;</span> <span class="o">%</span> <span class="n">ip</span>
+            <span class="n">document</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stream_server_xml</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;http://</span><span class="si">%(host)s</span><span class="s1">:</span><span class="si">%(port)s</span><span class="s1">/admin/stats.xml&#39;</span> <span class="o">%</span> <span class="n">ip</span>
+            <span class="n">document</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stream_server_xml</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+        <span class="n">dom</span> <span class="o">=</span> <span class="n">defusedxml</span><span class="o">.</span><span class="n">minidom</span><span class="o">.</span><span class="n">parseString</span><span class="p">(</span><span class="n">document</span><span class="p">)</span>
+        <span class="n">sources</span> <span class="o">=</span> <span class="n">dom</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">)</span>
+
+        <span class="n">mount_stats</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sources</span><span class="p">:</span>
+            <span class="c1">#drop the leading &#39;/&#39; character</span>
+            <span class="n">mount_name</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">getAttribute</span><span class="p">(</span><span class="s2">&quot;mount&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="k">if</span> <span class="n">mount_name</span> <span class="o">==</span> <span class="n">ip</span><span class="p">[</span><span class="s2">&quot;mount&quot;</span><span class="p">]:</span>
+                <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span>
+                <span class="n">listeners</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">)</span>
+                <span class="n">num_listeners</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">listeners</span><span class="p">):</span>
+                    <span class="n">num_listeners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_node_text</span><span class="p">(</span><span class="n">listeners</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">childNodes</span><span class="p">)</span>
+
+                <span class="n">mount_stats</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;timestamp&quot;</span><span class="p">:</span><span class="n">timestamp</span><span class="p">,</span> \
+                            <span class="s2">&quot;num_listeners&quot;</span><span class="p">:</span> <span class="n">num_listeners</span><span class="p">,</span> \
+                            <span class="s2">&quot;mount_name&quot;</span><span class="p">:</span> <span class="n">mount_name</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">mount_stats</span></div>
+
+<div class="viewcode-block" id="ListenerStat.get_shoutcast_stats"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.get_shoutcast_stats">[docs]</a>    <span class="k">def</span> <span class="nf">get_shoutcast_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ip</span><span class="p">):</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;http://</span><span class="si">%(host)s</span><span class="s1">:</span><span class="si">%(port)s</span><span class="s1">/admin.cgi?sid=1&amp;mode=viewxml&#39;</span> <span class="o">%</span> <span class="n">ip</span>
+        <span class="n">document</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stream_server_xml</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">is_shoutcast</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">dom</span> <span class="o">=</span> <span class="n">defusedxml</span><span class="o">.</span><span class="n">minidom</span><span class="o">.</span><span class="n">parseString</span><span class="p">(</span><span class="n">document</span><span class="p">)</span>
+        <span class="n">current_listeners</span> <span class="o">=</span> <span class="n">dom</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;CURRENTLISTENERS&quot;</span><span class="p">)</span>
+
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span>
+        <span class="n">num_listeners</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">current_listeners</span><span class="p">):</span>
+            <span class="n">num_listeners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_node_text</span><span class="p">(</span><span class="n">current_listeners</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">childNodes</span><span class="p">)</span>
+
+        <span class="n">mount_stats</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;timestamp&quot;</span><span class="p">:</span><span class="n">timestamp</span><span class="p">,</span> \
+                    <span class="s2">&quot;num_listeners&quot;</span><span class="p">:</span> <span class="n">num_listeners</span><span class="p">,</span> \
+                    <span class="s2">&quot;mount_name&quot;</span><span class="p">:</span> <span class="s2">&quot;shoutcast&quot;</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">mount_stats</span></div>
+
+<div class="viewcode-block" id="ListenerStat.get_stream_stats"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.get_stream_stats">[docs]</a>    <span class="k">def</span> <span class="nf">get_stream_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_parameters</span><span class="p">):</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1">#iterate over stream_parameters which is a list of dicts. Each dict</span>
+        <span class="c1">#represents one Airtime stream (currently this limit is 3).</span>
+        <span class="c1">#Note that there can be optimizations done, since if all three</span>
+        <span class="c1">#streams are the same server, we will still initiate 3 separate</span>
+        <span class="c1">#connections</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">stream_parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;true&#39;</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;icecast&quot;</span><span class="p">:</span>
+                        <span class="n">mount_stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_icecast_stats</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">mount_stats</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mount_stats</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">stats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_shoutcast_stats</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">update_listener_stat_error</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;mount&quot;</span><span class="p">],</span> <span class="s1">&#39;OK&#39;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">update_listener_stat_error</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;mount&quot;</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stats</span></div>
+
+<div class="viewcode-block" id="ListenerStat.push_stream_stats"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.push_stream_stats">[docs]</a>    <span class="k">def</span> <span class="nf">push_stream_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stats</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">push_stream_stats</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ListenerStat.update_listener_stat_error"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.update_listener_stat_error">[docs]</a>    <span class="k">def</span> <span class="nf">update_listener_stat_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_id</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
+        <span class="n">keyname</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_listener_stat_error&#39;</span> <span class="o">%</span> <span class="n">stream_id</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="n">keyname</span><span class="p">:</span> <span class="n">error</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">update_stream_setting_table</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ListenerStat.run"><a class="viewcode-back" href="../pypo.html#listenerstat.ListenerStat.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#Wake up every 120 seconds and gather icecast statistics. Note that we</span>
+        <span class="c1">#are currently querying the server every 2 minutes for list of</span>
+        <span class="c1">#mountpoints as well. We could remove this query if we hooked into</span>
+        <span class="c1">#rabbitmq events, and listened for these changes instead.</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">stream_parameters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stream_parameters</span><span class="p">()</span>
+                <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stream_stats</span><span class="p">(</span><span class="n">stream_parameters</span><span class="p">[</span><span class="s2">&quot;stream_params&quot;</span><span class="p">])</span>
+
+                <span class="k">if</span> <span class="n">stats</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">push_stream_stats</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;ListenerStat thread exiting&#39;</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># create logger</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;std_out&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+    <span class="c1"># create console handler and set level to debug</span>
+    <span class="c1">#ch = logging.StreamHandler()</span>
+    <span class="c1">#ch.setLevel(logging.DEBUG)</span>
+    <span class="c1"># create formatter</span>
+    <span class="n">formatter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(lineno)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="c1"># add formatter to ch</span>
+    <span class="c1">#ch.setFormatter(formatter)</span>
+    <span class="c1"># add ch to logger</span>
+    <span class="c1">#logger.addHandler(ch)</span>
+
+    <span class="c1">#ls = ListenerStat(logger=logger)</span>
+    <span class="c1">#ls.run()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pypo</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pypo.html">pypo package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
