@@ -14,6 +14,8 @@ import subprocess
 import sys
 import time
 import types
+import requests
+from requests.auth import HTTPBasicAuth
 
 import readconfig as airtime
 import metadata as airtime_md
@@ -127,7 +129,7 @@ def watch (dir_id, directory):
 #      #print ("Can't get directory for watching")
 #      exit()
     watch_dir=str(directory)
-    len_watch_dir=len(watch_dir) 
+    len_watch_dir=len(watch_dir)
     # so now scan all directories
     for curroot, dirs, files in os.walk(watch_dir):
         if files == None:
@@ -156,10 +158,25 @@ def watch (dir_id, directory):
             logging.info("Insert: "+database["filepath"])
             #print ("Insert: "+database["filepath"])
             database["utime"] = datetime.datetime.now()
-            if airtime_md.analyse_file (curFilePath,database):
-              insert_database (conn)
+            # this was the previous attempt to import via a parallel analysis process
+            #if airtime_md.analyse_file (curFilePath,database):
+            #  insert_database (conn)
             #let's sleep
 #            time.sleep(1)
+            # lets send a /media/rest POST account via requests to the server
+            host = config["web_host"]
+            print host
+            port = config["web_port"]
+            basedir = config["web_basedir"]
+            url = 'http://' + str(host) + ':' + str(port) + str(basedir) + 'rest/media'
+            print url
+            print str(config["api_key"])
+            files = {'file': open(curFilePath, 'rb')}
+            data = {
+                'api_key': str(config["api_key"])
+            }
+            r = requests.post(url, auth=HTTPBasicAuth(str(config["api_key"]),''), files=files, )
+            print r.text
           else :
             cur1 = conn.cursor()
 #            try:
@@ -244,6 +261,7 @@ def disconnect_from_messaging_server(connection):
   connection.close()
 
 def main():
+  print("LT to the C")
   logging.info("Program started..")
   config = airtime.read_config()
 

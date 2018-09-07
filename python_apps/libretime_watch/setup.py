@@ -23,8 +23,8 @@ setup(name='libretime_watch',
       version='0.1',
       description='Libretime Watch existing directory',
       url='http://github.com/libretime/libretime',
-      author='HaJoHe',
-      author_email='rni@chef.net',
+      author='HaJoHe, Robbt',
+      author_email='rni@chef.net, robbt@azone.org',
       license='MIT',
 #      py_modules=['libretime_watch/libretime_watch', 'libretime_watch/readconfig.py'],
       packages=['libretime_watch'],
@@ -33,7 +33,8 @@ setup(name='libretime_watch',
           'mutagen',
           'pika',
           'psycopg2', # database
-          'jason'
+          'jason',
+          'requests', # to send the file to the libretime website for importing
       ],
       zip_safe=False,
       data_files=data_files)
