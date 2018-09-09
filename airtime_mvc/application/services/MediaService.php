@@ -46,8 +46,6 @@ class Application_Service_MediaService
             $newTempFilePath = Application_Model_StoredFile::moveFileToStor($filePath, $originalFilename, $copyFile);
         }
         else {
-            Logging::info('nope');
-            Logging::info($importedStorageDirectory);
             $newTempFilePath = $filePath;
         }
         //Dispatch a message to airtime_analyzer through RabbitMQ,
