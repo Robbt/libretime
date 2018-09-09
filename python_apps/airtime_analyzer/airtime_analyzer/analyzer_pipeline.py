@@ -76,7 +76,10 @@ class AnalyzerPipeline:
                 csu = CloudStorageUploader(cloud_storage_config)
                 metadata = csu.upload_obj(audio_file_path, metadata)
             else:
-                metadata = FileMoverAnalyzer.move(audio_file_path, import_directory, original_filename, metadata)
+                if (import_directory != audio_file_path):
+                    metadata = FileMoverAnalyzer.move(audio_file_path, import_directory, original_filename, metadata)
+                else:
+                    metadata["full_path"] = audio_file_path
 
             metadata["import_status"] = 0 # Successfully imported
 

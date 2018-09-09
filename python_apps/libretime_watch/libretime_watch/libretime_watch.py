@@ -173,9 +173,10 @@ def watch (dir_id, directory):
             print str(config["api_key"])
             files = {'file': open(curFilePath, 'rb')}
             data = {
-                'api_key': str(config["api_key"])
+                'watchedFolder': True,
+                'filePath': curFilePath
             }
-            r = requests.post(url, auth=HTTPBasicAuth(str(config["api_key"]),''), files=files, )
+            r = requests.post(url, auth=HTTPBasicAuth(str(config["api_key"]),''), files=files, data=data)
             print r.text
           else :
             cur1 = conn.cursor()

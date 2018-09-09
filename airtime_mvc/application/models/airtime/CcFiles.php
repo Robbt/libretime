@@ -110,13 +110,16 @@ class CcFiles extends BaseCcFiles {
      *  static music files (like sample tracks).
      * @param string $filePath The full path to the audio file to import.
      * @param bool $copyFile True if you want to just copy the false, false if you want to move it (default false)
+     * @param bool $watchedFolder True if you want to import the file at its current position (default false)
      * @throws Exception
      */
-    public static function createFromLocalFile($fileArray, $filePath, $copyFile=false)
+    public static function createFromLocalFile($fileArray, $filePath, $copyFile=false, $watchedFolder=false)
     {
+        Logging::info("what the funk");
+        Logging::info($watchedFolder);
         $info = pathinfo($filePath);
         $fileName =  basename($filePath).'.'.$info['extension'];
-        self::createAndImport($fileArray, $filePath, $fileName, $copyFile);
+        self::createAndImport($fileArray, $filePath, $fileName, $copyFile, $watchedFolder);
     }
 
     /** Create a new CcFiles object/row and import a file for it.
@@ -129,7 +132,7 @@ class CcFiles extends BaseCcFiles {
      * @throws Exception
      * @throws PropelException
      */
-    private static function createAndImport($fileArray, $filePath, $originalFilename, $copyFile=false)
+    private static function createAndImport($fileArray, $filePath, $originalFilename, $copyFile=false, $watchedFolder=false)
     {
         $file = new CcFiles();
 
@@ -157,7 +160,7 @@ class CcFiles extends BaseCcFiles {
             $callbackUrl = Application_Common_HTTPHelper::getStationUrl() . "/rest/media/" . $file->getPrimaryKey();
 
             Application_Service_MediaService::importFileToLibrary($callbackUrl, $filePath,
-                $originalFilename, self::getOwnerId(), $copyFile);
+                $originalFilename, self::getOwnerId(), $copyFile, $watchedFolder);
 
             return CcFiles::sanitizeResponse($file);
 

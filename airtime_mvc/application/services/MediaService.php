@@ -18,24 +18,38 @@ class Application_Service_MediaService
      * @param $originalFilename string The original filename, if you want it to be preserved after import.
      * @param $ownerId string The ID of the user that will own the file inside Airtime.
      * @param $copyFile bool True if you want to copy the file to the "organize" directory, false if you want to move it (default)
+     * @param $watchedFolder bool True if you want to just import the file with it in its current location, false if you want to import it (default)
      * @return Ambigous
      * @throws Exception
      */
-    public static function importFileToLibrary($callbackUrl, $filePath, $originalFilename, $ownerId, $copyFile)
+    public static function importFileToLibrary($callbackUrl, $filePath, $originalFilename, $ownerId, $copyFile, $watchedFolder)
     {
         $CC_CONFIG = Config::getConfig();
         $apiKey = $CC_CONFIG["apiKey"][0];
 
         $importedStorageDirectory = "";
         if ($CC_CONFIG["current_backend"] == "file") {
+            // if the
+            if (!$watchedFolder) {
             $storDir = Application_Model_MusicDir::getStorDir();
             $importedStorageDirectory = $storDir->getDirectory() . "/imported/" . $ownerId;
+            }
+            else {
+                $importedStorageDirectory = $filePath;
+            }
         }
 
         //Copy the temporary file over to the "organize" folder so that it's off our webserver
         //and accessible by airtime_analyzer which could be running on a different machine.
-        $newTempFilePath = Application_Model_StoredFile::moveFileToStor($filePath, $originalFilename, $copyFile);
-
+        //If it is a watchedFolder file then it will stay in the same location and thus isn't moved
+        if (!$watchedFolder) {
+            $newTempFilePath = Application_Model_StoredFile::moveFileToStor($filePath, $originalFilename, $copyFile);
+        }
+        else {
+            Logging::info('nope');
+            Logging::info($importedStorageDirectory);
+            $newTempFilePath = $filePath;
+        }
         //Dispatch a message to airtime_analyzer through RabbitMQ,
         //notifying it that there's a new upload to process!
         $storageBackend = new ProxyStorageBackend($CC_CONFIG["current_backend"]);

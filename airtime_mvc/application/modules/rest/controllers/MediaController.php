@@ -141,7 +141,14 @@ class Rest_MediaController extends Zend_Rest_Controller
             if ($fileInfo['file']['error']) {
                 throw new Exception(sprintf('File upload error: %s', $fileInfo['file']['error']));
             }
+            // if we are doing a watched folder import
+            if ($watchedFolder = $this->_getParam('watchedFolder')) {
+                $filePath = $this->_getParam('filePath');
+                $sanitizedFile = CcFiles::createFromLocalFile($fileInfo, $filePath, false, $watchedFolder);
+            }
+            else {
             $sanitizedFile = CcFiles::createFromUpload($fileInfo);
+            }
             $this->getResponse()
                 ->setHttpResponseCode(201)
                 ->appendBody(json_encode($sanitizedFile));
