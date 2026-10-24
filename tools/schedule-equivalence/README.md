@@ -106,6 +106,16 @@ difference: `cc_show_instances.created` and `last_scheduled` hold the wall
 clock of whichever run happened, and `cc_schedule.id` follows the insert order
 of a multi row statement, so the schedule rows are keyed by instance instead.
 
+The harness owns the schedule tables while it runs and leaves the fixture shows
+behind afterwards. To hand the database back to the application:
+
+```bash
+docker exec -i libretime-postgres-1 psql -U libretime -d libretime     < tools/schedule-equivalence/clean.sql
+```
+
+Without the `shows_populated_until` preference the next request populates the
+calendar from now on, exactly like a fresh install.
+
 ## Probing the legacy side
 
 `probe-date-semantics.php`, `probe-criteria.php` and `probe-date-edge.php` print
