@@ -116,6 +116,43 @@ docker exec -i libretime-postgres-1 psql -U libretime -d libretime     < tools/s
 Without the `shows_populated_until` preference the next request populates the
 calendar from now on, exactly like a fresh install.
 
+## Timezone database caveat
+
+PHP does not have to read the same timezone database as Python, and in these
+images it does not. The legacy container reports its own bundled database:
+
+```console
+$ docker exec libretime-legacy-1 php -i | grep -i "timezone database"
+Timezone Database => internal
+"Olson" Timezone Database Version => 2024.2
+```
+
+while the API reads the system database, `tzdata 2026c`. The two agree on the
+recent past and on the horizon the builders actually run over - weeks and
+months - which is why the comparison above is exact. They disagree on further
+out dates whose rules changed after 2024.2, and `America/Vancouver` is such a
+case:
+
+```console
+php     2026-01-01 06:30 Vancouver -> 2026-01-01 14:30 UTC   (UTC-8)
+php     2044-01-01 06:30 Vancouver -> 2044-01-01 14:30 UTC   (UTC-8)
+python  2026-01-01 06:30 Vancouver -> 2026-01-01 14:30 UTC   (UTC-8)
+python  2044-01-01 06:30 Vancouver -> 2044-01-01 13:30 UTC   (UTC-7)
+```
+
+The winter offset of that zone stops agreeing in 2027. Two consequences worth
+remembering while both builders exist:
+
+* The equivalence proven here is about the horizon the calendar is populated
+  over, not about arbitrary dates decades out.
+* A show in a zone whose rules changed after the database PHP was built with
+  gets instances one hour off depending on which builder populated the
+  calendar. Either keep exactly one owner of the calendar per database, or
+  track the database versions: a PHP release refreshes the bundled one, and a
+  unit test that asserts an absolute instant for such a zone is really
+  asserting a tzdata version, which is why the pytest cases keep far future
+  dates inside zones that agree.
+
 ## Probing the legacy side
 
 `probe-date-semantics.php`, `probe-criteria.php` and `probe-date-edge.php` print
