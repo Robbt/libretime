@@ -78,6 +78,14 @@ general:
   # which of them happened to generate them.
   # > default is legacy
   show_instance_populator: "legacy"
+
+  # Which service fills the autoplaylists of upcoming shows - intro, main and
+  # outro playlists of every show that starts within the next hour. With legacy
+  # the legacy task manager does it, as it always has. With api the API worker
+  # does it and the legacy poll slows down to an hourly safety net, so that a
+  # stopped worker delays a schedule rather than leaving a show empty.
+  # > default is legacy
+  auto_playlist_builder: "legacy"
 ```
 
 ## Storage

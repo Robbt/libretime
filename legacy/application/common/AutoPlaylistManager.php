@@ -5,7 +5,14 @@ class AutoPlaylistManager
     /**
      * @var int how often, in seconds, to check for and ingest new podcast episodes
      */
-    private static $_AUTOPLAYLIST_POLL_INTERVAL_SECONDS = 60;  // 10 minutes
+    private static $_AUTOPLAYLIST_POLL_INTERVAL_SECONDS = 60;  // 1 minute
+
+    /**
+     * @var int poll interval when general.auto_playlist_builder says the API
+     *          owns the job: the legacy build then only runs as a safety net for
+     *          a worker that stopped, an hour behind rather than absent
+     */
+    private static $_AUTOPLAYLIST_SAFETY_NET_SECONDS = 3600;
 
     /**
      * @var string how far ahead to make sure show instances exist. Must comfortably
@@ -33,9 +40,17 @@ class AutoPlaylistManager
      */
     public static function hasAutoPlaylistPollIntervalPassed(): bool
     {
+        $interval = self::$_AUTOPLAYLIST_POLL_INTERVAL_SECONDS;
+        if (Config::get('general.auto_playlist_builder') === 'api') {
+            // The API worker owns the build. Keep running, but only often
+            // enough to catch a worker that is gone - and note that the lock
+            // preference is shared, so whoever ran last sets the pace.
+            $interval = self::$_AUTOPLAYLIST_SAFETY_NET_SECONDS;
+        }
+
         $lastPolled = Application_Model_Preference::getAutoPlaylistPollLock();
 
-        return empty($lastPolled) || (microtime(true) > $lastPolled + self::$_AUTOPLAYLIST_POLL_INTERVAL_SECONDS);
+        return empty($lastPolled) || (microtime(true) > $lastPolled + $interval);
     }
 
     /**

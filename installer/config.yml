@@ -38,6 +38,13 @@ general:
   # > default is legacy
   show_instance_populator: legacy
 
+  # Which service fills the autoplaylists of upcoming shows: the legacy service
+  # (legacy) or the API worker (api). The legacy poll keeps running as a slow
+  # safety net when the API owns the job, so a stopped worker still gets shows
+  # scheduled, just later than it should have been.
+  # > default is legacy
+  auto_playlist_builder: legacy
+
 storage:
   # Path of the storage directory. Make sure to update the Nginx configuration after
   # updating the storage path.

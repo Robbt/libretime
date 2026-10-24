@@ -13,12 +13,14 @@ from datetime import datetime, time, timedelta, timezone
 import pytest
 from model_bakery import baker
 
+from ....storage.models import File
 from ...models import (
     Playlist,
     PlaylistContent,
     Schedule,
     Show,
     ShowInstance,
+    SmartBlock,
     Webstream,
 )
 from ...services.populate import PreferenceStore, to_instant
@@ -200,8 +202,6 @@ def test_a_running_instance_is_filled_up_to_now() -> None:
 
 
 def test_files_are_marked_as_scheduled() -> None:
-    from ....storage.models import File
-
     instance = make_instance()
     playlist = make_playlist(timedelta(minutes=1))
     file_id = playlist_items(playlist)[0].item_id
@@ -259,15 +259,55 @@ def test_streams_are_scheduled_without_a_file() -> None:
     assert row.fade_out == time(0, 0, 0, 500000)
 
 
-def test_blocks_are_refused_until_the_fill_lands() -> None:
-    playlist = baker.make(Playlist, name="with a block")
+def test_static_blocks_expand_into_their_content() -> None:
+    """A static block already holds its rows, so it expands in position order."""
+    block: SmartBlock = baker.make(SmartBlock, kind="static")
+    first: File = baker.make(File, exists=True, hidden=False, scheduled=False)
+    second: File = baker.make(File, exists=True, hidden=False, scheduled=False)
+
+    for position, file in enumerate((first, second)):
+        baker.make(
+            "schedule.SmartBlockContent",
+            block=block,
+            file=file,
+            position=position,
+            offset=0.0,
+            length=timedelta(minutes=1),
+            cue_in=timedelta(0),
+            cue_out=timedelta(minutes=1),
+        )
+
+    playlist = baker.make(Playlist, name="with a static block")
     baker.make(
         PlaylistContent,
         playlist=playlist,
         kind=PlaylistContent.Kind.BLOCK,
         file=None,
         stream=None,
-        block=baker.make("schedule.SmartBlock"),
+        block=block,
+        position=0,
+        offset=0.0,
+        length=timedelta(minutes=2),
+        cue_in=timedelta(0),
+        cue_out=timedelta(minutes=2),
+    )
+
+    instance = make_instance()
+    result = append_playlist(instance, playlist, now=START)
+
+    assert result.items == 2
+    assert [row.file_id for row in scheduled(instance)] == [first.pk, second.pk]
+
+
+def test_dynamic_blocks_are_refused_until_the_fill_lands() -> None:
+    playlist = baker.make(Playlist, name="with a dynamic block")
+    baker.make(
+        PlaylistContent,
+        playlist=playlist,
+        kind=PlaylistContent.Kind.BLOCK,
+        file=None,
+        stream=None,
+        block=baker.make(SmartBlock, kind="dynamic"),
         position=0,
         offset=0.0,
         length=timedelta(minutes=3),

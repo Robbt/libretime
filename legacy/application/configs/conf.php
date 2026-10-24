@@ -49,6 +49,11 @@ class Schema implements ConfigurationInterface
             /*  */->thenInvalid('invalid general.show_instance_populator %s')
             /*  */->end()
             /**/->end()
+            /**/->scalarNode('auto_playlist_builder')->defaultValue('legacy')
+            /*  */->validate()->ifNotInArray(['legacy', 'api'])
+            /*  */->thenInvalid('invalid general.auto_playlist_builder %s')
+            /*  */->end()
+            /**/->end()
             /**/->integerNode('cache_ahead_hours')->defaultValue(1)->end()
             ->end()->end()
 

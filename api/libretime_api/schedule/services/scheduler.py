@@ -103,6 +103,54 @@ class MediaItem:
     fade_out: time | None
 
 
+def _block_items(row: PlaylistContent) -> list[MediaItem]:
+    """
+    The content of a block referenced by a playlist.
+
+    A static block already holds its rows, so it expands in order. A dynamic one
+    has to be evaluated against the library first, which is the fill step rather
+    than this one, and is refused rather than approximated.
+    """
+    from ..models import SmartBlock  # local: keeps the import order acyclic
+
+    block = row.block
+
+    if block is None:
+        raise UnsupportedContent(f"playlist content {row.pk} references no block")
+
+    if block.kind != SmartBlock.Kind.STATIC:
+        raise UnsupportedContent(
+            f"playlist {row.playlist_id} contains the smart block {block.pk}, "
+            "which is evaluated by the fill step rather than here"
+        )
+
+    from ..models import SmartBlockContent
+
+    items = []
+
+    for content in SmartBlockContent.objects.filter(block=block).order_by(
+        "position", "pk"
+    ):
+        if content.file_id is None:
+            raise UnsupportedContent(
+                f"block {block.pk} content {content.pk} references no file"
+            )
+
+        items.append(
+            MediaItem(
+                kind=ItemType.FILE,
+                item_id=content.file_id,
+                length=_as_delta(content.length),
+                cue_in=_as_delta(content.cue_in),
+                cue_out=_as_delta(content.cue_out),
+                fade_in=_fade(content.fade_in),
+                fade_out=_fade(content.fade_out),
+            )
+        )
+
+    return items
+
+
 def _as_time(value: object) -> time | None:
     if value is None or value == "":
         return None
@@ -144,12 +192,8 @@ def playlist_items(playlist: Playlist) -> list[MediaItem]:
             ) from error
 
         if kind is ItemType.BLOCK:
-            # A block has to be evaluated into files first, which is the next
-            # step of this port rather than a detail of this one.
-            raise UnsupportedContent(
-                f"playlist {playlist.pk} contains the smart block {row.block_id}; "
-                "blocks are not scheduled by this version of the port"
-            )
+            items.extend(_block_items(row))
+            continue
         item_id = row.file_id if kind is ItemType.FILE else row.stream_id
 
         if item_id is None:

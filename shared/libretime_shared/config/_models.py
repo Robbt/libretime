@@ -24,6 +24,11 @@ class GeneralConfig(BaseModel):
     # service does it on its own unless the API is told to own it.
     show_instance_populator: Literal["legacy", "api"] = "legacy"
 
+    # Which service fills the autoplaylists of upcoming shows. The legacy poll
+    # stays the safety net either way; see general.show_instance_populator for
+    # the same arrangement on instance generation.
+    auto_playlist_builder: Literal["legacy", "api"] = "legacy"
+
     @field_validator("timezone")
     @classmethod
     def _validate_timezone(cls, value: str) -> str:

@@ -67,6 +67,23 @@ if populate_shows_scheduled():
     }
 
 
+def build_autoplaylists_scheduled() -> bool:
+    """
+    Whether this worker fills the autoplaylists of upcoming shows.
+
+    The legacy task manager keeps a poll either way; with api it slows to an
+    hourly safety net, see general.auto_playlist_builder.
+    """
+    return settings.CONFIG.general.auto_playlist_builder == "api"
+
+
+if build_autoplaylists_scheduled():
+    app.conf.beat_schedule["schedule-build-autoplaylists"] = {
+        "task": "libretime_api.schedule.tasks.build_upcoming_autoplaylists",
+        "schedule": schedule(run_every=timedelta(minutes=1)),
+    }
+
+
 @signals.worker_init.connect
 def init_sentry(**_kwargs):
     if "SENTRY_DSN" in os.environ:

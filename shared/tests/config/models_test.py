@@ -91,3 +91,21 @@ def test_stream_config():
     assert len(config.outputs.icecast) == 1
     assert len(config.outputs.shoutcast) == 1
     assert len(config.outputs.system) == 1
+
+
+def test_general_config_auto_playlist_builder():
+    """Defaults to the legacy poll, so existing installs change nothing."""
+    defaults = {
+        "public_url": "http://localhost:8080",
+        "api_key": "api_key",
+        "secret_key": "secret_key",
+    }
+    assert GeneralConfig(**defaults).auto_playlist_builder == "legacy"
+
+    assert (
+        GeneralConfig(**defaults, auto_playlist_builder="api").auto_playlist_builder
+        == "api"
+    )
+
+    with pytest.raises(ValidationError):
+        GeneralConfig(**defaults, auto_playlist_builder="celery")

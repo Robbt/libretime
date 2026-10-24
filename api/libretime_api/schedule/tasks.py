@@ -6,7 +6,9 @@ from celery.utils.log import get_task_logger
 from django.db.models import F
 from django.utils import timezone
 
+from ..notify import update_schedule
 from .models import Schedule
+from .services.autoplaylist import build_autoplaylists, poll_interval_passed
 from .services.populate import PreferenceStore, populate_show_instances
 
 logger = get_task_logger(__name__)
@@ -22,6 +24,9 @@ POPULATE_AHEAD = timedelta(days=7)
 POPULATE_MIN_AHEAD = timedelta(days=2)
 POPULATE_SOFT_TIME_LIMIT = timedelta(minutes=4)
 POPULATE_TIME_LIMIT = timedelta(minutes=5)
+
+BUILD_AUTOPLAYLISTS_SOFT_TIME_LIMIT = timedelta(minutes=2)
+BUILD_AUTOPLAYLISTS_TIME_LIMIT = timedelta(minutes=3)
 
 
 @shared_task(
@@ -114,3 +119,27 @@ def populate_shows() -> int:
     )
 
     return populate_show_instances(until)
+
+
+@shared_task(
+    soft_time_limit=BUILD_AUTOPLAYLISTS_SOFT_TIME_LIMIT.seconds,
+    time_limit=BUILD_AUTOPLAYLISTS_TIME_LIMIT.seconds,
+)
+def build_upcoming_autoplaylists() -> int:
+    """
+    Fill the shows that start within the hour from their playlists.
+
+    Scheduled only when ``general.auto_playlist_builder`` says this worker owns
+    the job; the legacy service keeps a slower poll either way, and both read the
+    same poll lock, so handing the job over cannot make them build twice in the
+    same minute.
+
+    Returns:
+        Number of show instances built.
+    """
+    if not poll_interval_passed():
+        return 0
+
+    built = build_autoplaylists(notify=update_schedule)
+
+    return built
