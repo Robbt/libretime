@@ -150,8 +150,9 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": renderer_classes,
     "DEFAULT_AUTHENTICATION_CLASSES": (
         # The session cookie of the legacy service first: a browser that logged
-        # in to the station is authenticated here as the same user, read-only.
-        # It returns None for anything it does not recognise, so the two below
+        # in to the station is authenticated here as the same user. Anything that
+        # changes something must also carry that session's csrf token. The class
+        # returns None for everything it does not recognise, so the two below
         # keep working exactly as before.
         "libretime_api.core.auth.PhpSessionAuthentication",
         "rest_framework.authentication.SessionAuthentication",

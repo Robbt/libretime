@@ -13,9 +13,14 @@ import time
 
 import pytest
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, APIClient
 
-from ....core.auth import COOKIE_NAME, PhpSessionAuthentication, identity
+from ....core.auth import (
+    COOKIE_NAME,
+    PhpSessionAuthentication,
+    csrf_token,
+    identity,
+)
 from ....core.auth._phpserialize import PhpDecodeError, loads
 from ....core.models import Session, User
 from ....core.models.role import Role
@@ -40,7 +45,18 @@ ANONYMOUS = (
     's:4:"__ZF";a:1:{s:14:"csrf_namespace";a:1:{s:3:"ENT";i:1793322342;}}}'
 )
 
+# The token the same session expects back on any request that changes something.
+CSRF_TOKEN = "c95a9722fe0096c1ff1a0a0277b9f555a0a824ac"
+ANONYMOUS_CSRF_TOKEN = "7d90450bfeda751bc40a42900abc1cf1146fc794"
+
 LIFETIME = 1440
+
+# A session written before the csrf namespace existed, to exercise the branch
+# where a write cannot be checked at all.
+WITHOUT_CSRF = (
+    'a:1:{s:9:"libretime";a:1:{s:7:"storage";O:8:"stdClass":2:{s:2:"id";i:2;'
+    's:5:"login";s:9:"api_spike";}}}'
+)
 
 
 # ---------------------------------------------------------------------------
@@ -222,8 +238,16 @@ def test_session_of_a_deleted_user_authenticates_nobody(db, caplog):
     assert "sid00000" not in caplog.text  # the id is a credential
 
 
-def test_a_live_session_may_not_write(user):
-    """The bridge is read-only until cross-site forgery can be checked."""
+def test_a_read_needs_no_token(user):
+    make_session(session_id="sid0000000000000000000000000006")
+
+    assert PhpSessionAuthentication().authenticate(
+        _drf_request("get", "sid0000000000000000000000000006")
+    )
+
+
+def test_a_write_without_the_token_is_refused(user):
+    """A cookie proves which user, not that this page meant to write."""
     make_session(session_id="sid0000000000000000000000000006")
 
     with pytest.raises(AuthenticationFailed) as error:
@@ -231,7 +255,89 @@ def test_a_live_session_may_not_write(user):
             _drf_request("post", "sid0000000000000000000000000006")
         )
 
-    assert "read requests only" in str(error.value)
+    assert "forgery check failed" in str(error.value)
+
+
+def test_a_write_with_the_header_token_is_authenticated(user):
+    make_session(session_id="sid0000000000000000000000000006")
+
+    result = PhpSessionAuthentication().authenticate(
+        _drf_request(
+            "post",
+            "sid0000000000000000000000000006",
+            {"key": "general.front_end_timeout", "value": "1"},
+            format="json",
+            HTTP_X_CSRFTOKEN=CSRF_TOKEN,
+        )
+    )
+
+    assert result is not None
+    assert result[0] == user
+
+
+def test_a_write_with_the_form_field_token_is_authenticated(user):
+    """The legacy convention stays working for the bodies that can carry it."""
+    make_session(session_id="sid0000000000000000000000000006")
+
+    result = PhpSessionAuthentication().authenticate(
+        _drf_request(
+            "post",
+            "sid0000000000000000000000000006",
+            {"csrf_token": CSRF_TOKEN, "key": "general.front_end_timeout"},
+        )
+    )
+
+    assert result is not None
+    assert result[0] == user
+
+
+def test_a_write_carrying_another_sessions_token_is_refused(user):
+    make_session(session_id="sid0000000000000000000000000006")
+    make_session(
+        session_id="sid0000000000000000000000000007",
+        data=LOGGED_IN.replace(CSRF_TOKEN, "0" * 40),
+    )
+
+    with pytest.raises(AuthenticationFailed):
+        PhpSessionAuthentication().authenticate(
+            _drf_request(
+                "post",
+                "sid0000000000000000000000000006",
+                format="json",
+                HTTP_X_CSRFTOKEN="0" * 40,
+            )
+        )
+
+
+def test_a_write_with_an_empty_header_token_is_refused(user):
+    make_session(session_id="sid0000000000000000000000000006")
+
+    with pytest.raises(AuthenticationFailed):
+        PhpSessionAuthentication().authenticate(
+            _drf_request(
+                "post",
+                "sid0000000000000000000000000006",
+                format="json",
+                HTTP_X_CSRFTOKEN="",
+            )
+        )
+
+
+def test_a_session_without_a_token_cannot_write(user, caplog):
+    """Better a refusal that names the reason than a check that cannot happen."""
+    make_session(session_id="sid0000000000000000000000000008", data=WITHOUT_CSRF)
+
+    with pytest.raises(AuthenticationFailed) as error:
+        PhpSessionAuthentication().authenticate(
+            _drf_request(
+                "post",
+                "sid0000000000000000000000000008",
+                format="json",
+                HTTP_X_CSRFTOKEN=CSRF_TOKEN,
+            )
+        )
+
+    assert "has no CSRF token" in str(error.value)
 
 
 def test_a_request_without_a_session_may_still_write_with_other_credentials():
@@ -241,14 +347,103 @@ def test_a_request_without_a_session_may_still_write_with_other_credentials():
     assert result is None
 
 
-def _drf_request(method: str, session_id: str | None):
+# ---------------------------------------------------------------------------
+# the token a session carries
+# ---------------------------------------------------------------------------
+
+
+def test_the_token_lives_in_the_same_payload_as_the_identity():
+    assert csrf_token(LOGGED_IN) == CSRF_TOKEN
+
+
+def test_an_anonymous_session_has_one_too():
+    """
+    PageLayoutInitPlugin mints it before anybody logs in, so a live session
+    always has something a write can be checked against.
+    """
+    assert csrf_token(ANONYMOUS) == ANONYMOUS_CSRF_TOKEN
+
+
+@pytest.mark.parametrize("payload", [None, "", WITHOUT_CSRF, "nonsense{"])
+def test_a_payload_without_a_token_yields_none(payload):
+    assert csrf_token(payload) is None
+
+
+# ---------------------------------------------------------------------------
+# handing the token to the page that needs it
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db()
+def test_a_session_can_read_its_own_token(user):
+    make_session(session_id="sid0000000000000000000000000006")
+
+    client = APIClient()
+    client.cookies[COOKIE_NAME] = "sid0000000000000000000000000006"
+
+    response = client.get("/api/v2/session/csrf-token")
+
+    assert response.status_code == 200
+    assert response.json()["csrf_token"] == CSRF_TOKEN
+
+
+@pytest.mark.django_db()
+def test_an_anonymous_caller_gets_no_token():
+    response = APIClient().get("/api/v2/session/csrf-token")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db()
+def test_a_caller_with_no_session_of_its_own_gets_no_token(user):
+    """An api key or a password has no csrf token to be shown."""
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get("/api/v2/session/csrf-token")
+
+    assert response.status_code == 403
+    assert "legacy session" in response.json()["detail"]
+
+
+@pytest.mark.django_db()
+def test_a_session_without_a_token_says_so(user):
+    make_session(session_id="sid0000000000000000000000000008", data=WITHOUT_CSRF)
+
+    client = APIClient()
+    client.cookies[COOKIE_NAME] = "sid0000000000000000000000000008"
+
+    response = client.get("/api/v2/session/csrf-token")
+
+    assert response.status_code == 403
+    assert "no CSRF token" in response.json()["detail"]
+
+
+def _drf_request(method: str, session_id: str | None, data=None, **extra):
+    """
+    A request as a view would hand it to its authenticators.
+
+    The parsers and the parser context come from the view in real use, so they
+    have to be named here: reading a multipart body without them raises rather
+    than parses, and the test would be testing its own scaffolding.
+    """
+    from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
     from rest_framework.request import Request
 
     factory = APIRequestFactory()
     handler = getattr(factory, method)
 
-    headers = {}
+    headers = dict(extra)
     if session_id is not None:
         headers["HTTP_COOKIE"] = f"{COOKIE_NAME}={session_id}"
 
-    return Request(handler("/api/v2/library/files/", **headers))
+    if data is None:
+        wrapped = handler("/api/v2/core/preferences/", **headers)
+    else:
+        wrapped = handler("/api/v2/core/preferences/", data, **headers)
+
+    return Request(
+        wrapped,
+        parsers=[JSONParser(), FormParser(), MultiPartParser()],
+        parser_context={"request": wrapped},
+    )

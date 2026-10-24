@@ -8,31 +8,38 @@ returns the matching user - so a user who logged in once is authenticated to the
 API as well, without a second login and without the API holding its own copy of
 any credential.
 
-Why it is read-only by design
------------------------------
+Why a write also needs the session token
+----------------------------------------
 
-Unsafe requests are refused. Accepting a cookie as proof of identity is exactly
-what makes cross-site request forgery possible: another page could make the
-browser send an authenticated ``POST`` it did not ask for. The legacy service
-protects itself with a token in ``$_SESSION['csrf_namespace']`` which this API
-cannot validate the way Django's ``CsrfViewMiddleware`` validates its own,
-because the two secrets live in different stores.
+Accepting a cookie as proof of identity is exactly what makes cross-site request
+forgery possible: another page could make the browser send an authenticated
+``POST`` it did not ask for. Cookies arrive whether the browser was sent there or
+not, so a cookie can prove which user, but not that this page asked.
 
-So this class authenticates reads, which is what a UI needs to replace the
-read-only screens, and leaves writes to one of two follow-ups: either the browser
-logs in through the API as well and gets a Django session for mutating requests,
-or the API learns to verify the legacy token. Either is a design decision rather
-than a detail, and refusing in the meantime is the honest answer.
+The legacy service solves this with a random token kept in the session and sent
+back as a ``csrf_token`` field - ``SecurityHelper::verifyCSRFToken`` compares the
+two. That token sits in the very payload this class already reads, so the API can
+apply the same rule: a request that changes something has to present the token its
+own session holds. A cross-site page cannot read it - same-origin policy stops it
+from reading the response of ``GET /api/v2/session/csrf-token`` - and a cross-site
+form cannot set a request header, so a custom header is out of reach for an
+attacker's page and is what JSON writes are expected to carry.
+
+Django's own ``CsrfViewMiddleware`` is not the thing enforcing this. It validates
+the ``django_session`` secret, which a legacy session does not have, so the check
+below is the only one standing between a forged request and a write.
 """
 
 from __future__ import annotations
 
 import logging
+from secrets import compare_digest
 from typing import Any
 
 from django.utils import timezone
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 
 from ..models import Session, User
@@ -47,6 +54,20 @@ COOKIE_NAME = "PHPSESSID"
 SESSION_NAMESPACE = "libretime"
 IDENTITY_KEY = "storage"
 
+# Zend_Session_Namespace('csrf_namespace')->authtoken, as written by
+# PageLayoutInitPlugin and compared by SecurityHelper::verifyCSRFToken.
+CSRF_NAMESPACE = "csrf_namespace"
+CSRF_KEY = "authtoken"
+
+# The name Django's own AJAX convention uses, so browser tooling already knows it.
+CSRF_HEADER = "HTTP_X_CSRFTOKEN"
+# The name the legacy application uses for the same value in a form body.
+CSRF_FIELD = "csrf_token"
+
+# Only these two body formats carry the field, and reading the body during
+# authentication is only safe for the parsers that know how to cache it.
+CSRF_FIELD_MEDIA_TYPES = (FormParser.media_type, MultiPartParser.media_type)
+
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 
@@ -56,9 +77,9 @@ class PhpSessionAuthentication(BaseAuthentication):
 
     Returns ``None``, meaning "not my credentials", whenever the cookie is
     absent, the session is unknown or expired, or nobody is logged in to it - so
-    that API-key and basic authentication keep working unchanged. Requests that
-    do carry a live session but try to change something are refused rather than
-    passed on half-authenticated.
+    that API-key and basic authentication keep working unchanged. A request that
+    carries a live session and tries to change something is authenticated only
+    when it also presents that session's CSRF token.
     """
 
     def authenticate(self, request: Request) -> tuple[User, Any] | None:
@@ -93,11 +114,7 @@ class PhpSessionAuthentication(BaseAuthentication):
             return None
 
         if request.method not in SAFE_METHODS:
-            raise AuthenticationFailed(
-                "The legacy session authenticates read requests only. Write "
-                "requests need an authenticated session of this API, so that "
-                "cross-site request forgery can be checked."
-            )
+            self.verify_csrf(request, record, user)
 
         return user, record
 
@@ -106,6 +123,43 @@ class PhpSessionAuthentication(BaseAuthentication):
     # always answered an anonymous request with 403. Offering a scheme here would
     # quietly change that for every endpoint, which is not what a read bridge is
     # for. See libretime_api/tests/test_permissions.py.
+
+    @staticmethod
+    def verify_csrf(request: Request, record: Session, user: User) -> None:
+        """
+        Refuse a write that did not present the token its session holds.
+
+        The header is tried first, then a ``csrf_token`` field, in that order and
+        for a reason: only a body can carry the field, and a body can be sent by a
+        forged form, so the field is the weaker of the two - it is accepted to stay
+        compatible with the legacy convention, and it is still bound to the session
+        rather than to the browser. JSON bodies are deliberately not looked at. A
+        reader would have parsed the stream during authentication, before the view
+        knows which parser it wanted, and a write that is worth forging is not
+        worth that trade. Send the header with JSON.
+        """
+        expected = csrf_token(record.data)
+
+        if not expected:
+            raise AuthenticationFailed(
+                f"The session of user {user.username!r} has no CSRF token, so "
+                "this API cannot check a write it carries."
+            )
+
+        observed = request.META.get(CSRF_HEADER, "")
+
+        if not observed and _media_type(request) in CSRF_FIELD_MEDIA_TYPES:
+            observed = request.data.get(CSRF_FIELD, "")
+
+        # compare_digest rather than ==, which is what the legacy helper uses for
+        # two sha1 hex strings: an early-exit comparison of a secret is a needless
+        # way to leak it a character at a time.
+        if not observed or not compare_digest(str(observed), expected):
+            raise AuthenticationFailed(
+                "Cross-site request forgery check failed: send the token from "
+                "GET /api/v2/session/csrf-token as the X-CSRFToken header, or as "
+                f"a {CSRF_FIELD} field in a form body."
+            )
 
     @staticmethod
     def is_live(record: Session) -> bool:
@@ -164,6 +218,46 @@ def identity(payload: str | None) -> str | None:
     logger.warning("legacy session identity has an unexpected shape")
 
     return None
+
+
+def _media_type(request: Request) -> str:
+    """
+    The request's media type on its own.
+
+    ``content_type`` keeps the parameters - a multipart body arrives as
+    ``multipart/form-data; boundary=...; charset=utf-8`` - so it cannot be
+    compared to a media type directly.
+    """
+    return (request.content_type or "").split(";")[0].strip().lower()
+
+
+def csrf_token(payload: str | None) -> str | None:
+    """
+    The CSRF token a session expects back on any request that changes something.
+
+    ``PageLayoutInitPlugin`` keeps it in ``$_SESSION['csrf_namespace']['authtoken']``
+    as a sha1 hex string, generated for anonymous sessions as well as logged in
+    ones, so a session that reached this far normally has one.
+    """
+    if not payload:
+        return None
+
+    try:
+        decoded = loads(payload)
+    except PhpDecodeError:
+        return None
+
+    if not isinstance(decoded, dict):
+        return None
+
+    namespaced = decoded.get(CSRF_NAMESPACE)
+
+    if not isinstance(namespaced, dict):
+        return None
+
+    token = namespaced.get(CSRF_KEY)
+
+    return token if isinstance(token, str) and token else None
 
 
 def _mask(session_id: str) -> str:
