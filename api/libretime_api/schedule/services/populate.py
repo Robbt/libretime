@@ -145,6 +145,21 @@ def truncate_second(value: datetime) -> datetime:
     return value.replace(microsecond=0)
 
 
+def to_instant(value: datetime) -> datetime:
+    """
+    ``value`` read from a ``cc_*`` timestamp column, as an instant.
+
+    Those columns carry no time zone, so the ORM returns naive datetimes that
+    are to be read as UTC - the legacy service wrote them with
+    ``gmdate('Y-m-d H:i:s')``. Anything taken from them and used for
+    arithmetic or written back gets its offset back here.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+
+    return value.astimezone(UTC)
+
+
 class PreferenceStore:
     """Site wide ``cc_pref`` values the builder needs."""
 
@@ -702,7 +717,9 @@ def fill_linked_instances(
     now = now or timezone.now()
 
     template = (
-        ShowInstance.objects.filter(show=show, starts_at__lt=populated_until)
+        ShowInstance.objects.filter(
+            show=show, starts_at__lt=populated_until.astimezone(UTC)
+        )
         .exclude(pk__in=instance_ids)
         .order_by("-starts_at")
         .first()
@@ -750,7 +767,8 @@ def _linked_instance_rows(
     cues and position are copied verbatim from the template item.
     """
     rows = []
-    next_start = instance.starts_at
+    # Read from a column without time zone, see to_instant().
+    next_start = to_instant(instance.starts_at)
 
     for item in items:
         end = next_start + timedelta(microseconds=to_microseconds(item.length))
@@ -768,10 +786,13 @@ def _linked_instance_rows(
                 stream_id=item.stream_id,
                 instance_id=instance_id,
                 position=item.position,
-                # Freshly copied content is not on air yet, and has never been
-                # played. Both are the column defaults PHP leaves untouched.
+                # Freshly copied content is not on air yet. The legacy insert
+                # lists neither media_item_played nor broadcasted nor
+                # playout_status, so all three get their column default: false,
+                # 0 and 1 (inside the instance). Django would insert NULL for
+                # the nullable media_item_played, hence the explicit value.
                 broadcasted=0,
-                played=None,
+                played=False,
                 position_status=Schedule.PositionStatus.INSIDE,
             )
         )
@@ -794,14 +815,16 @@ def update_schedule_status(instance: ShowInstance, *, now: datetime) -> None:
     filled = Schedule.objects.filter(instance=instance).aggregate(total=Sum("length"))[
         "total"
     ]
+    # Read from a column without time zone, see to_instant().
+    ends_at = to_instant(instance.ends_at)
     instance.filled_time = filled if filled is not None else timedelta(0)
     instance.save(update_fields=["filled_time"])
 
     statuses = {
-        Schedule.PositionStatus.INSIDE: Q(ends_at__lte=instance.ends_at),
-        Schedule.PositionStatus.BOUNDARY: Q(starts_at__lt=instance.ends_at)
-        & Q(ends_at__gt=instance.ends_at),
-        Schedule.PositionStatus.OUTSIDE: Q(starts_at__gt=instance.ends_at),
+        Schedule.PositionStatus.INSIDE: Q(ends_at__lte=ends_at),
+        Schedule.PositionStatus.BOUNDARY: Q(starts_at__lt=ends_at)
+        & Q(ends_at__gt=ends_at),
+        Schedule.PositionStatus.OUTSIDE: Q(starts_at__gt=ends_at),
     }
     for status, condition in statuses.items():
         Schedule.objects.filter(instance=instance, position_status__gte=0).filter(
