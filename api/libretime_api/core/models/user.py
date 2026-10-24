@@ -121,7 +121,10 @@ class User(AbstractBaseUser):
     # django.contrib.auth.models.PermissionMixin.
 
     def is_superuser(self):
-        return self.role == Role.ADMIN
+        # Both halves of the legacy admin tier. Without SUPERADMIN here a
+        # superadmin reaches get_group_permissions(), finds no entry, and the
+        # request that only wanted to read a list ends in a KeyError.
+        return self.role in (Role.ADMIN, Role.SUPERADMIN)
 
     # pylint: disable=unused-argument
     def get_user_permissions(self, obj=None):
@@ -131,14 +134,26 @@ class User(AbstractBaseUser):
         return []
 
     def get_group_permissions(self, obj=None):
-        permissions = GROUPS[self.role]
+        # A role the installation does not know - a row written by a future
+        # release, or edited by hand - grants nothing. Raising here turns a
+        # permission question into a 500 on every endpoint the user touches.
+        permissions = GROUPS.get(self.role, [])
         if obj is not None:
             obj_name = obj.__class__.__name__.lower()
             permissions = [perm for perm in permissions if obj_name in perm]
+
+        if not permissions:
+            # An empty list has to stop here. The query below is a chain of
+            # orphan-optional Q objects, and a bare Q() constrains nothing: filtering
+            # with one returns every permission in the database, which would hand
+            # every right in the api to a role that was given none.
+            return []
+
         # get permissions objects
         query = models.Q()
         for perm in permissions:
             query = query | models.Q(codename=perm)
+
         return list(Permission.objects.filter(query))
 
     def get_all_permissions(self, obj=None):
