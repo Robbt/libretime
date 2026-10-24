@@ -6,9 +6,10 @@ Port of the insert path behind ``Application_Model_Scheduler::scheduleAfter()``
 it: take the items of a playlist and append them to a show instance, overlapping
 them by the crossfade duration, then refresh the instance statistics.
 
-Only the parts the builder exercises are here. Items that reference a smart
-block are refused rather than half implemented, because a block has to be
-evaluated first - that arrives together with the fill semantics.
+A playlist row that points at a block contributes that block's content: a
+static one expands in position order, a dynamic one is evaluated against the
+library and packed into the time the show still has room for, through
+:mod:`.criteria` and :mod:`.fill`.
 
 The two rules that decide where every item lands:
 
@@ -43,6 +44,7 @@ the measured difference and keeps its fixtures on values both sides agree on.
 from __future__ import annotations
 
 import logging
+import random
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
@@ -50,12 +52,16 @@ from decimal import Decimal
 
 from django.utils import timezone
 
+from ...storage.models import File
 from ..models import (
     Playlist,
     PlaylistContent,
     Schedule,
     ShowInstance,
+    SmartBlock,
 )
+from .criteria import files as matching_files, limit_of
+from .fill import Track, fill
 from .populate import (
     PreferenceStore,
     to_instant,
@@ -103,13 +109,19 @@ class MediaItem:
     fade_out: time | None
 
 
-def _block_items(row: PlaylistContent) -> list[MediaItem]:
+def _block_items(
+    row: PlaylistContent,
+    *,
+    show_limit: int | None = None,
+    show_start: datetime | None = None,
+    rng: random.Random | None = None,
+) -> list[MediaItem]:
     """
     The content of a block referenced by a playlist.
 
     A static block already holds its rows, so it expands in order. A dynamic one
-    has to be evaluated against the library first, which is the fill step rather
-    than this one, and is refused rather than approximated.
+    is evaluated against the library and packed into whatever the show still has
+    room for, which is what ``retrieveMediaFiles()`` does for it.
     """
     from ..models import SmartBlock  # local: keeps the import order acyclic
 
@@ -119,9 +131,8 @@ def _block_items(row: PlaylistContent) -> list[MediaItem]:
         raise UnsupportedContent(f"playlist content {row.pk} references no block")
 
     if block.kind != SmartBlock.Kind.STATIC:
-        raise UnsupportedContent(
-            f"playlist {row.playlist_id} contains the smart block {block.pk}, "
-            "which is evaluated by the fill step rather than here"
+        return _dynamic_block_items(
+            block, show_limit=show_limit, show_start=show_start, rng=rng
         )
 
     from ..models import SmartBlockContent
@@ -151,6 +162,70 @@ def _block_items(row: PlaylistContent) -> list[MediaItem]:
     return items
 
 
+def _dynamic_block_items(
+    block: SmartBlock,
+    *,
+    show_limit: int | None = None,
+    show_start: datetime | None = None,
+    rng: random.Random | None = None,
+) -> list[MediaItem]:
+    """
+    A smart block, evaluated and packed into the time the show still has.
+
+    Candidates come from the block criteria in its sort order; the window is the
+    block's own limit, except for a "fill the remaining time" block, which gets
+    the seconds left in the show. Each chosen file is scheduled with its own cue
+    points and the installation's default fades, which is what a dynamic track got
+    in the legacy builder.
+    """
+    limit = limit_of(block, show_limit)
+
+    # The criteria already exclude files that are missing or hidden. A relative
+    # date in them is measured from the start of the show, as it was there.
+    candidates = [
+        Track(file.pk, _cue_seconds(file))
+        for file in matching_files(block, now=show_start)
+    ]
+
+    by_id = {track.id: track for track in candidates}
+    by_file = {file.pk: file for file in matching_files(block, now=show_start)}
+
+    items: list[MediaItem] = []
+
+    for track in fill(candidates, limit, rng=rng):
+        file = by_file[track.id]
+        cue_in = _as_delta(file.cue_in)
+        cue_out = _as_delta(file.cue_out)
+
+        items.append(
+            MediaItem(
+                kind=ItemType.FILE,
+                item_id=track.id,
+                # The length that gets scheduled is the cued part of the file.
+                length=timedelta(seconds=by_id[track.id].length),
+                cue_in=cue_in,
+                cue_out=cue_out,
+                fade_in=default_fade_in(),
+                fade_out=default_fade_out(),
+            )
+        )
+
+    return items
+
+
+def _cue_seconds(file: File) -> float:
+    """Seconds a file contributes: the part between its cue points."""
+    return (_as_delta(file.cue_out) - _as_delta(file.cue_in)).total_seconds()
+
+
+def default_fade_in() -> time:
+    return seconds_to_time(PreferenceStore.get("default_fade_in") or "0.5")
+
+
+def default_fade_out() -> time:
+    return seconds_to_time(PreferenceStore.get("default_fade_out") or "0.5")
+
+
 def _as_time(value: object) -> time | None:
     if value is None or value == "":
         return None
@@ -171,9 +246,20 @@ def _as_delta(value: object) -> timedelta:
     return timedelta(microseconds=to_microseconds(str(value)))
 
 
-def playlist_items(playlist: Playlist) -> list[MediaItem]:
+def playlist_items(
+    playlist: Playlist,
+    *,
+    show_limit: int | None = None,
+    show_start: datetime | None = None,
+    rng: random.Random | None = None,
+) -> list[MediaItem]:
     """
     The content of a playlist, in the order it plays.
+
+    ``show_limit`` and ``show_start`` are only needed by dynamic smart blocks:
+    the first is the seconds a block may still fill in its show, the second is
+    the instant a relative date in a block's criteria is measured from. Both come
+    from the show instance the content is being built for.
 
     ``Application_Model_Playlist::getContents()`` unions files, streams and
     blocks and orders by position; the same order decides the schedule, so ties
@@ -192,7 +278,9 @@ def playlist_items(playlist: Playlist) -> list[MediaItem]:
             ) from error
 
         if kind is ItemType.BLOCK:
-            items.extend(_block_items(row))
+            items.extend(
+                _block_items(row, show_limit=show_limit, show_start=show_start, rng=rng)
+            )
             continue
         item_id = row.file_id if kind is ItemType.FILE else row.stream_id
 
@@ -286,6 +374,22 @@ def _last_item(instance: ShowInstance) -> Schedule | None:
     fillers included, and the scheduler then starts from its end.
     """
     return Schedule.objects.filter(instance=instance).order_by("-ends_at").first()
+
+
+def show_remaining_seconds(
+    instance: ShowInstance, filled: timedelta | None = None
+) -> int:
+    """
+    The time left in an instance, as ``getSecondsRemaining()`` measures it.
+
+    Duration minus what is already scheduled - not the clock: a show that has
+    been on air for an hour still has the same thing left to fill as when it
+    started, which is what a "fill the remaining time" block is asking for.
+    """
+    duration = to_instant(instance.ends_at) - to_instant(instance.starts_at)
+    already = filled if filled is not None else (instance.filled_time or timedelta(0))
+
+    return max(0, int((duration - already).total_seconds()))
 
 
 def append_items(
@@ -429,6 +533,7 @@ def append_playlist(
     *,
     now: datetime | None = None,
     notify: Callable[[], None] | None = None,
+    rng: random.Random | None = None,
 ) -> ScheduledCount:
     """
     Schedule a whole playlist at the end of a show instance.
@@ -439,7 +544,18 @@ def append_playlist(
     once - which is what the autoplaylist poll does - and so that this module
     stays free of transport.
     """
-    result = append_items(instance, playlist_items(playlist), now=now)
+    instance.refresh_from_db(fields=["filled_time"])
+
+    result = append_items(
+        instance,
+        playlist_items(
+            playlist,
+            show_limit=show_remaining_seconds(instance),
+            show_start=to_instant(instance.starts_at),
+            rng=rng,
+        ),
+        now=now,
+    )
 
     if result and notify is not None:
         notify()

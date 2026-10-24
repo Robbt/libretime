@@ -9,7 +9,7 @@ from .criteria import (
     limit_of,
 )
 from .populate import populate_show_instances
-from .scheduler import append_playlist, append_items, playlist_items
+from .scheduler import append_items, append_playlist, playlist_items
 
 __all__ = [
     "BlockLimit",

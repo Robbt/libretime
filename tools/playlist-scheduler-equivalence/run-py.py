@@ -13,7 +13,7 @@ from libretime_api.schedule.services.scheduler import append_playlist  # noqa: E
 # 2031, so none of them is treated as already started.
 NOW = datetime(2031, 1, 1, tzinfo=timezone.utc)
 
-CASES = [(8001, 8101), (8002, 8101), (8003, 8102)]
+CASES = [(8001, 8101), (8002, 8101), (8003, 8102), (8004, 8103), (8005, 8104)]
 
 for instance_id, playlist_id in CASES:
     append_playlist(

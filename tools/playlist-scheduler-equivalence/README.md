@@ -25,6 +25,8 @@ legacy code can be years behind what is under review.
 | 8001 | an empty instance: the first item starts when the instance starts, later items start one crossfade before the previous ends |
 | 8002 | an instance with content already scheduled: the appended playlist crosses into the last existing item |
 | 8003 | a stream and a file: the stream gets the hardcoded half-second fade the legacy `retrieveMediaFiles()` gives it, whatever the playlist row says |
+| 8004 | a **static block** in the playlist: its own rows, in position order |
+| 8005 | a **dynamic block** in the playlist: criteria, then the fill - the whole chain, compared to what the legacy service picks |
 
 `cc_show_instances.time_filled` is compared as well, which is what
 `updateScheduleStatus()` leaves behind after the insert.
@@ -34,7 +36,9 @@ legacy code can be years behind what is under review.
 * **The "show already started" branch**, which writes a filler row and starts at
   `now`. Both sides would have to run at the same instant for its rows to be
   comparable; they run seconds apart. `test_scheduler.py` covers it instead.
-* **Playlists containing smart blocks**, which have to be evaluated first.
+* **Randomly sorted dynamic blocks**, whose answer differs on every rebuild in
+  both services. The fixtures use an ordered block so the choice itself is
+  comparable; the random shape is covered by property tests in `test_fill.py`.
 
 ## A measured difference: the legacy side loses subsecond precision
 
@@ -56,3 +60,19 @@ reproducing it would carry a defect into the new service rather than remove it.
 So the fixtures here use values that are exact at one decimal, which keeps this
 harness a byte-for-byte gate on the thing that actually matters: the crossfade
 arithmetic, the ordering, and the resulting status of the instance.
+
+## A legacy quirk the fixtures have to work around
+
+`Application_Model_Playlist::getContents()` unions files, streams and blocks - and
+joins each block to its **creator with an inner join**. A block whose
+`creator_id` is null therefore makes the whole playlist return zero rows, silently:
+
+```
+block 8601, creator_id NULL   ->  playlist 8103 getContents(): 0 rows
+block 8601, creator_id 8501   ->  playlist 8103 getContents(): 2 rows
+```
+
+The fixtures give both blocks a creator, so this harness compares the scheduling
+rather than the bug. The port does not reproduce the join: it expands the block
+whatever its creator. Worth reporting upstream - a show whose autoplaylist
+contains an ownerless block plays nothing at all, with nothing in the logs.

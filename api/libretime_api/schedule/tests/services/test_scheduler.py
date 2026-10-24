@@ -21,6 +21,7 @@ from ...models import (
     Show,
     ShowInstance,
     SmartBlock,
+    SmartBlockCriteria,
     Webstream,
 )
 from ...services.populate import PreferenceStore, to_instant
@@ -44,6 +45,20 @@ def _database(db):
     # they were computed against is set rather than left to the default of zero.
     PreferenceStore.set("default_crossfade_duration", "1.5")
     yield
+
+
+def make_file(name: str, **fields):
+    """A file a criteria can find: present on disk and not hidden."""
+    from ....storage.models import File
+
+    fields.setdefault("exists", True)
+    fields.setdefault("hidden", False)
+    fields.setdefault("mime", "audio/mpeg")
+    fields.setdefault("name", name)
+    fields.setdefault("scheduled", False)
+    fields.setdefault("filepath", f"/media/{name}.mp3")
+
+    return File.objects.create(**fields)
 
 
 def make_instance(starts: datetime = START) -> ShowInstance:
@@ -299,7 +314,47 @@ def test_static_blocks_expand_into_their_content() -> None:
     assert [row.file_id for row in scheduled(instance)] == [first.pk, second.pk]
 
 
-def test_dynamic_blocks_are_refused_until_the_fill_lands() -> None:
+def test_a_dynamic_block_is_evaluated_and_packed_into_the_window() -> None:
+    """
+    A block in a playlist is not copied, it is answered.
+
+    The block is evaluated against the library and packed into the time the show
+    still has room for, so a two minute show does not receive the whole shelf.
+    """
+    block = baker.make(SmartBlock, name="short things", kind="dynamic")
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="genre", condition="is", value="Ambient", group=0
+    )
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="sort", condition="N/A", value="newest"
+    )
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="limit", condition="minutes", value="3"
+    )
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="repeat_tracks", condition="N/A", value="0"
+    )
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="overflow_tracks", condition="N/A", value="0"
+    )
+
+    for index, minutes in enumerate((1, 2, 10)):
+        make_file(
+            f"ambient-{index}",
+            genre="Ambient",
+            length=timedelta(minutes=minutes),
+            cue_in=timedelta(0),
+            cue_out=timedelta(minutes=minutes),
+            created_at=datetime(2026, 1, 10 - index, tzinfo=UTC),
+        )
+    make_file(
+        "loud",
+        genre="Techno",
+        length=timedelta(minutes=1),
+        cue_in=timedelta(0),
+        cue_out=timedelta(minutes=1),
+    )
+
     playlist = baker.make(Playlist, name="with a dynamic block")
     baker.make(
         PlaylistContent,
@@ -307,16 +362,50 @@ def test_dynamic_blocks_are_refused_until_the_fill_lands() -> None:
         kind=PlaylistContent.Kind.BLOCK,
         file=None,
         stream=None,
-        block=baker.make(SmartBlock, kind="dynamic"),
+        block=block,
         position=0,
         offset=0.0,
-        length=timedelta(minutes=3),
+        length=timedelta(0),
         cue_in=timedelta(0),
-        cue_out=timedelta(minutes=3),
+        cue_out=timedelta(0),
     )
 
-    with pytest.raises(UnsupportedContent):
-        playlist_items(playlist)
+    items = playlist_items(playlist, show_limit=600, show_start=START)
+
+    # The 10 minute track does not fit a three minute window, the techno track
+    # fails the criteria, and the two short ambient ones do fit.
+    assert [item.length for item in items] == [
+        timedelta(minutes=1),
+        timedelta(minutes=2),
+    ]
+
+
+def test_a_dynamic_block_with_nothing_matching_contributes_nothing() -> None:
+    block = baker.make(SmartBlock, name="nothing", kind="dynamic")
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="genre", condition="is", value="Vivaldi"
+    )
+    SmartBlockCriteria.objects.create(
+        block=block, criteria="limit", condition="items", value="5"
+    )
+    make_file("somewhere else", genre="Ambient", length=timedelta(minutes=1))
+
+    playlist = baker.make(Playlist, name="with an empty block")
+    baker.make(
+        PlaylistContent,
+        playlist=playlist,
+        kind=PlaylistContent.Kind.BLOCK,
+        file=None,
+        stream=None,
+        block=block,
+        position=0,
+        offset=0.0,
+        length=timedelta(0),
+        cue_in=timedelta(0),
+        cue_out=timedelta(0),
+    )
+
+    assert playlist_items(playlist) == []
 
 
 def test_an_empty_playlist_does_nothing() -> None:
