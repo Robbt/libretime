@@ -62,3 +62,36 @@ advertises a scheme, so the bridge deliberately advertises none.
 The API has its own session store (`django_session`) used by the login screens at
 `/api/browser/login/`, and HTTP basic authentication against the same users. Both
 are ordinary, and both support writes, because CSRF protection applies to them.
+
+## Who may change what
+
+Authentication says who you are. What you may then do is decided by two questions,
+asked in this order:
+
+1. **Can your role do this to this kind of thing?** Checked on every request,
+   including a request for a list. The role lists live in
+   `api/libretime_api/permission_constants.py`: guest reads everything, host reads
+   and owns media, manager also reaches the schedule, admin and superadmin reach
+   everything.
+2. **If it is an owner's permission, does this row belong to you?** Checked on the
+   detail request, against the row. A show belongs to its hosts - the
+   `cc_show_hosts` rows behind the legacy `Application_Model_User::canSchedule` -
+   a file, playlist, smart block, webstream or podcast belongs to whoever created
+   it, and the rows inside those belong to the same person as their parent.
+
+What that adds up to, in the terms the station already uses:
+
+| you are | you may |
+| --- | --- |
+| guest | read |
+| host | read, create media, and change what you created - plus the content of any show you host |
+| host | **not** move, resize, cancel or delete a show, not even your own |
+| manager | all of the above, for anyone's |
+| admin, superadmin | everything |
+
+The rules are the legacy application's, kept honest by `tools/permission-equivalence`, which asks php and the api the same 336 questions over a fixture station whose
+objects belong to different people. One difference is deliberate and listed there:
+`Application_Model_Webstream::deleteStreams` leaves the superadmin out of its
+manager list, so a superadmin who did not create a webstream cannot delete it in
+the legacy application. That reads as a slip rather than an intention, and the api
+does not copy it.

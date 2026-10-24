@@ -23,6 +23,17 @@ class Playlist(models.Model):
     class Meta:
         managed = False
         db_table = "cc_playlist"
+        # These two existed in the host role's permission list all along, with no
+        # row of that name to match against, so has_perm answered no forever. No
+        # migration is needed to add them: this app has none, and migrate creates
+        # the permissions of an app without migrations on every run.
+        permissions = [
+            ("change_own_playlist", "Change the playlists where they are the owner"),
+            (
+                "delete_own_playlist",
+                "Delete the playlists where they are the owner",
+            ),
+        ]
 
 
 class PlaylistContent(models.Model):
@@ -76,3 +87,13 @@ class PlaylistContent(models.Model):
     class Meta:
         managed = False
         db_table = "cc_playlistcontents"
+        permissions = [
+            (
+                "change_own_playlistcontent",
+                "Change the contents of the playlists they own",
+            ),
+            (
+                "delete_own_playlistcontent",
+                "Delete the contents of the playlists they own",
+            ),
+        ]

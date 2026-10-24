@@ -98,6 +98,14 @@ MANAGER_PERMISSIONS = GUEST_PERMISSIONS + [
     "delete_webstream",
 ]
 
+# A host owns media: the files they uploaded, the playlists and blocks they made,
+# the podcasts they run, and the content of any show they host.
+#
+# What a host deliberately does not own is the schedule itself. Creating, moving,
+# resizing or cancelling a show, or naming its hosts, is a manager's call in the
+# legacy application too - ScheduleController.php:219 and :698 check for a manager
+# and never ask whether the caller hosts the show - which is why there is no
+# change_own_show below while there is one for the schedule rows inside a show.
 GROUPS = {
     Role.GUEST.value: GUEST_PERMISSIONS,
     Role.HOST.value: HOST_PERMISSIONS,
