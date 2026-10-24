@@ -64,6 +64,20 @@ general:
   # LibreTime_Auth_Adaptor_FreeIpa to replace the built-in adaptor.
   # > default is local
   auth: "local"
+
+  # Which service keeps the future show calendar populated. Repeating shows
+  # exist as concrete instances only up to the shows_populated_until
+  # preference, so one service has to keep extending it.
+  #
+  # With legacy the legacy service does it, as it always has. With api the API
+  # worker does it on a schedule and the legacy service stops doing so on its
+  # own - it takes the job back only when the horizon has not been extended for
+  # a day, which is how a worker that is not running shows up in the legacy
+  # logs. Keep exactly one owner: the two services do not necessarily read the
+  # same timezone database, and the instances of a show should not depend on
+  # which of them happened to generate them.
+  # > default is legacy
+  show_instance_populator: "legacy"
 ```
 
 ## Storage

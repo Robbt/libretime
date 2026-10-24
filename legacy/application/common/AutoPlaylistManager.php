@@ -20,6 +20,12 @@ class AutoPlaylistManager
     private static $_POPULATE_MIN_AHEAD = 'P2D';
 
     /**
+     * @var string take the horizon back from the API populator once it is closer
+     *             than this, which means its worker is not running
+     */
+    private static $_POPULATE_CRITICAL_AHEAD = 'P1D';
+
+    /**
      * Check whether $_AUTOPLAYLIST_POLL_INTERVAL_SECONDS have passed since the last call to
      * buildAutoPlaylist.
      *
@@ -126,20 +132,42 @@ class AutoPlaylistManager
      */
     protected static function populateUpcomingShowInstances(): void
     {
+        $horizon = Application_Model_Preference::GetShowsPopulatedUntil();
+
+        // general.show_instance_populator says who keeps the horizon ahead: this
+        // service, or the API worker. Ownership is exclusive on purpose - two
+        // builders do not agree on everything, they read different timezone
+        // databases among other things. Handing the job over must not
+        // reintroduce the outage this method exists for though, so when the API
+        // owns the calendar this only steps back in once the horizon is
+        // critically short, and says so loudly.
+        $minimum = self::$_POPULATE_MIN_AHEAD;
+        if (Config::get('general.show_instance_populator') === 'api') {
+            $minimum = self::$_POPULATE_CRITICAL_AHEAD;
+        }
+
+        // Only top up when the horizon gets close, so this does real work every
+        // few days rather than regenerating instances on every poll.
+        $threshold = new DateTime('now', new DateTimeZone('UTC'));
+        $threshold->add(new DateInterval($minimum));
+        if (!is_null($horizon) && $horizon >= $threshold) {
+            return;
+        }
+
         try {
-            // Only top up when the horizon gets close, so this does real work every
-            // few days rather than regenerating instances on every poll.
-            $horizon = Application_Model_Preference::GetShowsPopulatedUntil();
-            $threshold = new DateTime('now', new DateTimeZone('UTC'));
-            $threshold->add(new DateInterval(self::$_POPULATE_MIN_AHEAD));
-            if (is_null($horizon) || $horizon < $threshold) {
-                $populateUntil = new DateTime('now', new DateTimeZone('UTC'));
-                $populateUntil->add(new DateInterval(self::$_POPULATE_AHEAD));
+            $populateUntil = new DateTime('now', new DateTimeZone('UTC'));
+            $populateUntil->add(new DateInterval(self::$_POPULATE_AHEAD));
+
+            if ($minimum === self::$_POPULATE_CRITICAL_AHEAD) {
+                Logging::warn('autoplaylist taking the show instance horizon back from the api, '
+                    . 'it was ' . (is_null($horizon) ? 'unset' : $horizon->format('Y-m-d H:i:s')) . ' UTC');
+            } else {
                 Logging::info('autoplaylist extending show instances from '
                     . (is_null($horizon) ? 'unset' : $horizon->format('Y-m-d H:i:s'))
                     . ' to ' . $populateUntil->format('Y-m-d H:i:s') . ' UTC');
-                Application_Model_Show::createAndFillShowInstancesPastPopulatedUntilDate($populateUntil);
             }
+
+            Application_Model_Show::createAndFillShowInstancesPastPopulatedUntilDate($populateUntil);
         } catch (Throwable $e) {
             // Never let this stop the build for instances that already exist.
             Logging::error('autoplaylist could not populate show instances: ' . $e->getMessage());

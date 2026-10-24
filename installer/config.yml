@@ -30,6 +30,14 @@ general:
   # > default is local
   auth: local
 
+  # Which service keeps the future show calendar populated. With legacy the
+  # legacy service generates the instances of repeating shows, as it has always
+  # done. With api the API worker does it and the legacy service stops doing so
+  # on its own, only stepping back in when the horizon has not been extended
+  # for a day - which means the API worker is not running.
+  # > default is legacy
+  show_instance_populator: legacy
+
 storage:
   # Path of the storage directory. Make sure to update the Nginx configuration after
   # updating the storage path.

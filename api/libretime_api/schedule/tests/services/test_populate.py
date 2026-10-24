@@ -543,11 +543,25 @@ class PopulateGuardTests(TransactionTestCase):
     rather than relied on from the flush between tests.
     """
 
-    def setUp(self):
+    @staticmethod
+    def _reset() -> None:
+        """
+        Empty the legacy tables this class writes to.
+
+        The test runner makes the unmanaged legacy models managed for the
+        session and restores them afterwards, so they are not truncated between
+        tests - what is written here has to be deleted here, or the next test
+        inherits a populated-until preference and wonders why nothing happened.
+        """
+        Schedule.objects.all().delete()
         ShowInstance.objects.all().delete()
         ShowDays.objects.all().delete()
         ShowRebroadcast.objects.all().delete()
-        Preference.objects.filter(key__in=["shows_populated_until"]).delete()
+        Show.objects.all().delete()
+        Preference.objects.filter(key="shows_populated_until").delete()
+
+    def setUp(self):
+        self._reset()
 
         self.show = create_show("weekly utc")
         create_day(
@@ -556,6 +570,9 @@ class PopulateGuardTests(TransactionTestCase):
             weekday=ShowDays.WeekDay.MONDAY,
             kind=RepeatType.WEEKLY,
         )
+
+    def tearDown(self):
+        self._reset()
 
     def test_nothing_is_created_when_the_calendar_is_already_populated(self):
         PreferenceStore.set_shows_populated_until(UNTIL)

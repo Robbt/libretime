@@ -20,6 +20,10 @@ class GeneralConfig(BaseModel):
 
     allowed_cors_origins: list[AnyHttpUrlStr] = []
 
+    # Which service keeps the future show calendar populated. The legacy
+    # service does it on its own unless the API is told to own it.
+    show_instance_populator: Literal["legacy", "api"] = "legacy"
+
     @field_validator("timezone")
     @classmethod
     def _validate_timezone(cls, value: str) -> str:
