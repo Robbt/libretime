@@ -23,6 +23,21 @@ def test_general_config_timezone():
         GeneralConfig(**defaults, timezone="Europe/Invalid")
 
 
+def test_general_config_show_instance_populator():
+    """Defaults to the legacy service, so existing installs change nothing."""
+    defaults = {
+        "public_url": "http://localhost:8080",
+        "api_key": "api_key",
+        "secret_key": "secret_key",
+    }
+    assert GeneralConfig(**defaults).show_instance_populator == "legacy"
+
+    assert GeneralConfig(**defaults, show_instance_populator="api").show_instance_populator == "api"
+
+    with pytest.raises(ValidationError):
+        GeneralConfig(**defaults, show_instance_populator="playout")
+
+
 @pytest.mark.parametrize(
     "audio",
     [

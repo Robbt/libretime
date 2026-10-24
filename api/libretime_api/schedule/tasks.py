@@ -7,11 +7,21 @@ from django.db.models import F
 from django.utils import timezone
 
 from .models import Schedule
+from .services.populate import PreferenceStore, populate_show_instances
 
 logger = get_task_logger(__name__)
 
 CLEAN_OVERBOOKED_SCHEDULE_SOFT_TIME_LIMIT = timedelta(minutes=28)
 CLEAN_OVERBOOKED_SCHEDULE_TIME_LIMIT = timedelta(minutes=30)
+
+# The horizon the legacy AutoPlaylistManager keeps, copied so that switching
+# general.show_instance_populator between the two services does not move the
+# calendar horizon - the instance of a show are created by whichever service
+# gets there first and both apply the same rule.
+POPULATE_AHEAD = timedelta(days=7)
+POPULATE_MIN_AHEAD = timedelta(days=2)
+POPULATE_SOFT_TIME_LIMIT = timedelta(minutes=4)
+POPULATE_TIME_LIMIT = timedelta(minutes=5)
 
 
 @shared_task(
@@ -67,3 +77,40 @@ def clean_overbooked_schedule(batch_size: int = 10_000) -> int:
 
     logger.info("deleted %d overbooked schedule items", count)
     return count
+
+
+@shared_task(
+    soft_time_limit=POPULATE_SOFT_TIME_LIMIT.seconds,
+    time_limit=POPULATE_TIME_LIMIT.seconds,
+)
+def populate_shows() -> int:
+    """
+    Keep the future show calendar populated.
+
+    Repeating shows exist as rows only up to the ``shows_populated_until``
+    preference, so somebody has to extend it ahead of the clock. This task is
+    scheduled only when ``general.show_instance_populator`` says the API owns
+    that job; the legacy service otherwise keeps doing it and takes over again
+    when this one stops running.
+
+    Returns:
+        Number of show instances created, zero when the horizon is still long
+        enough to leave alone.
+    """
+    now = timezone.now()
+    horizon = PreferenceStore.shows_populated_until()
+
+    # Only a cheap way to avoid taking out a serializable transaction every
+    # half hour. The guard that decides is the one inside the transaction.
+    if horizon is not None and horizon >= now + POPULATE_MIN_AHEAD:
+        return 0
+
+    until = now + POPULATE_AHEAD
+
+    logger.info(
+        "extending show instances from %s to %s",
+        horizon.strftime("%Y-%m-%d %H:%M:%S") if horizon else "unset",
+        until.strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+    return populate_show_instances(until)

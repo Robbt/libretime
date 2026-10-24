@@ -45,6 +45,28 @@ app.conf.beat_schedule = {
 logger = get_task_logger(__name__)
 
 
+def populate_shows_scheduled() -> bool:
+    """
+    Whether this worker owns the future show calendar.
+
+    Exactly one service generates the instances of repeating shows, see
+    general.show_instance_populator: the legacy service tops the horizon up
+    unless the API is told to do it, and takes it back when the horizon starts
+    lapsing - which is how a worker that is not running shows up.
+    """
+    return settings.CONFIG.general.show_instance_populator == "api"
+
+
+# Exactly one service keeps the future show calendar populated. The legacy
+# service does it unless the configuration hands the job to this worker, and it
+# takes the job back when this worker stops extending the horizon.
+if populate_shows_scheduled():
+    app.conf.beat_schedule["schedule-populate-shows"] = {
+        "task": "libretime_api.schedule.tasks.populate_shows",
+        "schedule": schedule(run_every=timedelta(minutes=30)),
+    }
+
+
 @signals.worker_init.connect
 def init_sentry(**_kwargs):
     if "SENTRY_DSN" in os.environ:

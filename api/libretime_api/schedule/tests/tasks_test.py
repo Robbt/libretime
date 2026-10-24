@@ -1,10 +1,19 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
+import pytest
 from django.utils import timezone
 from model_bakery import baker
 
-from ..models import Schedule, ShowInstance
-from ..tasks import clean_overbooked_schedule
+from ...core.models import Preference
+from ...worker import populate_shows_scheduled
+from ..models import Schedule, Show, ShowDays, ShowInstance
+from ..services.populate import PreferenceStore, RepeatType
+from ..tasks import (
+    POPULATE_AHEAD,
+    POPULATE_MIN_AHEAD,
+    clean_overbooked_schedule,
+    populate_shows,
+)
 
 
 def make_instance(ends_ago: timedelta) -> ShowInstance:
@@ -93,3 +102,94 @@ def test_clean_overbooked_schedule_batches(db) -> None:
     assert clean_overbooked_schedule(batch_size=2) == 5
 
     assert not Schedule.objects.exists()
+
+
+def make_weekly_show(first_show_on: date) -> Show:
+    """A repeating show, which is what needs instances generated ahead."""
+    show = baker.make(Show, linked=False, linkable=True)
+    baker.make(
+        ShowDays,
+        show=show,
+        first_show_on=first_show_on,
+        last_show_on=None,
+        start_time=time(1, 0),
+        timezone="UTC",
+        duration="01:00",
+        record_enabled=0,
+        week_day=ShowDays.WeekDay.MONDAY,
+        repeat_kind=RepeatType.WEEKLY,
+        repeat_next_on=first_show_on,
+    )
+    return show
+
+
+@pytest.fixture()
+def clean_calendar(transactional_db):
+    """
+    A calendar with no instances and no populated-until preference.
+
+    The legacy tables are turned into managed ones by the test runner only for
+    the duration of a session and back to unmanaged at its end, so they are not
+    truncated between tests - a preference left behind by another test would
+    silently decide whether this one has work to do.
+    """
+    Schedule.objects.all().delete()
+    ShowInstance.objects.all().delete()
+    ShowDays.objects.all().delete()
+    Show.objects.all().delete()
+    Preference.objects.filter(
+        key__in=["shows_populated_until", "default_crossfade_duration"]
+    ).delete()
+
+
+def test_populate_shows_leaves_a_long_horizon_alone(clean_calendar) -> None:
+    """Nothing to do while the horizon is further away than the threshold."""
+    make_weekly_show(timezone.localdate())
+    PreferenceStore.set_shows_populated_until(timezone.now() + timedelta(days=5))
+
+    assert populate_shows() == 0
+    assert not ShowInstance.objects.exists()
+
+
+def test_populate_shows_extends_a_short_horizon(clean_calendar) -> None:
+    make_weekly_show(timezone.localdate())
+    horizon = timezone.now() + POPULATE_MIN_AHEAD - timedelta(hours=1)
+    PreferenceStore.set_shows_populated_until(horizon)
+
+    created = populate_shows()
+
+    assert created > 0
+    assert ShowInstance.objects.count() == created
+
+    # The horizon moved to the same instant the legacy service would use.
+    extended = PreferenceStore.shows_populated_until()
+    assert extended is not None
+    assert extended > horizon
+    assert abs(extended - (timezone.now() + POPULATE_AHEAD)) < timedelta(minutes=5)
+
+
+def test_populate_shows_extends_an_unset_horizon(clean_calendar) -> None:
+    make_weekly_show(timezone.localdate())
+
+    assert populate_shows() > 0
+
+
+def test_populate_shows_is_untouched_by_a_second_run(clean_calendar) -> None:
+    """The preference is the guard, so repeating the task does nothing twice."""
+    make_weekly_show(timezone.localdate())
+
+    first = populate_shows()
+    second = populate_shows()
+
+    assert first > 0
+    assert second == 0
+    assert ShowInstance.objects.count() == first
+
+
+def test_populate_shows_is_only_scheduled_when_the_api_owns_it(settings) -> None:
+    """The switch that hands the calendar to this worker, and takes it back."""
+    settings.CONFIG.general.show_instance_populator = "legacy"
+    assert not populate_shows_scheduled()
+
+    settings.CONFIG.general.show_instance_populator = "api"
+    assert populate_shows_scheduled()

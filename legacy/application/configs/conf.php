@@ -44,6 +44,11 @@ class Schema implements ConfigurationInterface
             /**/->end()
             /**/->scalarNode('dev_env')->defaultValue('production')->end()
             /**/->scalarNode('auth')->defaultValue('local')->end()
+            /**/->scalarNode('show_instance_populator')->defaultValue('legacy')
+            /*  */->validate()->ifNotInArray(['legacy', 'api'])
+            /*  */->thenInvalid('invalid general.show_instance_populator %s')
+            /*  */->end()
+            /**/->end()
             /**/->integerNode('cache_ahead_hours')->defaultValue(1)->end()
             ->end()->end()
 
