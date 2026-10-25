@@ -2,6 +2,8 @@ from secrets import compare_digest
 
 from django.conf import settings
 from django.db.models import QuerySet
+from django.http import RawPostDataException
+from rest_framework.exceptions import ParseError, UnsupportedMediaType
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 
@@ -259,7 +261,11 @@ def _body(request):
     """
     try:
         data = request.data
-    except Exception:  # noqa: BLE001
+    except (ParseError, UnsupportedMediaType, RawPostDataException):
+        # Nothing readable to check against: an upload that has not been parsed, a body
+        # whose content type has no parser, a stream already consumed by something
+        # earlier. The request is not wrong; there is simply no parent named in it, and
+        # the role permission stays the answer.
         return None
 
     return data if hasattr(data, "get") else None

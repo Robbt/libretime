@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.exceptions import FieldDoesNotExist
+
 # Both classes below are mixins: self.request and super().perform_create belong to
 # the viewset they are composed into, which pylint cannot see from here.
 # pylint: disable=no-member
@@ -71,9 +73,10 @@ def owner_of_parent(view, data: Any):
     try:
         field = view.queryset.model._meta.get_field(field_name)
         parent_model = field.related_model
-    except Exception:  # noqa: BLE001
-        # Not a relation this code can follow; the caller falls back to the role's
-        # own permission, which is the stricter answer rather than the looser one.
+    except (FieldDoesNotExist, AttributeError):
+        # Not a relation this code can follow: the field is absent, or it is a plain
+        # column rather than a foreign key. The caller falls back to the role's own
+        # permission, which is the stricter answer rather than the looser one.
         return None
 
     try:
