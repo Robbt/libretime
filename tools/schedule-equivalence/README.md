@@ -57,11 +57,11 @@ otherwise look like a successful one.
 
 ## Containers
 
-| variable | default | used for |
-| --- | --- | --- |
-| `AB_LEGACY_CONTAINER` | `libretime-legacy-1` | PHP builder |
-| `AB_PY_CONTAINER` | `rt-sched-dev` | Python builder |
-| `AB_DB_CONTAINER` | `libretime-postgres-1` | seeding and dumps |
+| variable              | default                | used for          |
+| --------------------- | ---------------------- | ----------------- |
+| `AB_LEGACY_CONTAINER` | `libretime-legacy-1`   | PHP builder       |
+| `AB_PY_CONTAINER`     | `rt-sched-dev`         | Python builder    |
+| `AB_DB_CONTAINER`     | `libretime-postgres-1` | seeding and dumps |
 
 The Python side needs `psql`-reachable settings: `run-py.py` runs with
 `DJANGO_SETTINGS_MODULE=libretime_api.settings.prod` and
@@ -92,32 +92,32 @@ stream:
 handling is not obvious. Each row of the fixture set is a real risk that was
 found by reading and probing the PHP, not a synthetic edge case:
 
-| show | rule | why it is in here |
-| --- | --- | --- |
-| A | weekly, UTC | baseline |
-| B | weekly, Europe/Berlin 21:00 | instances keep the local wall clock, so their UTC instant moves by an hour across the transition |
-| C | bi weekly, New York, `last_show` set | cut at the end date rather than the horizon |
-| D | quad weekly, Tokyo | 28 day interval, far east offset |
-| E | tri weekly, Berlin 02:30 | occurrences that land inside the spring forward gap |
-| F | monthly, the 31st | months without 31 days are skipped |
-| G | monthly, the 29th | February is skipped, both transitions crossed |
-| H | monthly first Monday, New York | the occurrence is computed in UTC, so these instances air on Sunday evening local time |
-| I | monthly fifth Thursday | months without a fifth Thursday are skipped |
-| J | weekly, recorded, two rebroadcasts | same-show instances linked by `instance_id`, offsets and next-day rebroadcasts |
-| K | weekly, linked show, 3 item template | content copied into every instance with crossfade overlap, subsecond clip lengths, `update_schedule_status` |
-| L | weekly on two days of the same show | one show, two repeat rules |
-| M | non repeating | must produce nothing on this path |
+| show | rule                                 | why it is in here                                                                                           |
+| ---- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| A    | weekly, UTC                          | baseline                                                                                                    |
+| B    | weekly, Europe/Berlin 21:00          | instances keep the local wall clock, so their UTC instant moves by an hour across the transition            |
+| C    | bi weekly, New York, `last_show` set | cut at the end date rather than the horizon                                                                 |
+| D    | quad weekly, Tokyo                   | 28 day interval, far east offset                                                                            |
+| E    | tri weekly, Berlin 02:30             | occurrences that land inside the spring forward gap                                                         |
+| F    | monthly, the 31st                    | months without 31 days are skipped                                                                          |
+| G    | monthly, the 29th                    | February is skipped, both transitions crossed                                                               |
+| H    | monthly first Monday, New York       | the occurrence is computed in UTC, so these instances air on Sunday evening local time                      |
+| I    | monthly fifth Thursday               | months without a fifth Thursday are skipped                                                                 |
+| J    | weekly, recorded, two rebroadcasts   | same-show instances linked by `instance_id`, offsets and next-day rebroadcasts                              |
+| K    | weekly, linked show, 3 item template | content copied into every instance with crossfade overlap, subsecond clip lengths, `update_schedule_status` |
+| L    | weekly on two days of the same show  | one show, two repeat rules                                                                                  |
+| M    | non repeating                        | must produce nothing on this path                                                                           |
 
 ## What is compared
 
-*   `out/*/instances.csv` every generated instance: id, show, `starts`, `ends`,
-description, record, rebroadcast, `modified_instance`, `autoplaylist_built`,
-`time_filled`, and the `instance_id` link.
-*   `out/*/show_days.csv` the `next_pop_date` the builder writes back per repeating
-day, which decides where the next run starts.
-*   `out/*/schedule.csv` the copied items of the linked show, keyed by instance and
-position: boundaries, clip length, fades, cues, status.
-*   `out/*/prefs.csv` the `shows_populated_until` value written at the end.
+- `out/*/instances.csv` every generated instance: id, show, `starts`, `ends`,
+  description, record, rebroadcast, `modified_instance`, `autoplaylist_built`,
+  `time_filled`, and the `instance_id` link.
+- `out/*/show_days.csv` the `next_pop_date` the builder writes back per repeating
+  day, which decides where the next run starts.
+- `out/*/schedule.csv` the copied items of the linked show, keyed by instance and
+  position: boundaries, clip length, fades, cues, status.
+- `out/*/prefs.csv` the `shows_populated_until` value written at the end.
 
 The `id` column of instances is compared on purpose: equal ids mean the rows
 were created in the same order.
@@ -164,9 +164,9 @@ python  2044-01-01 06:30 Vancouver -> 2044-01-01 13:30 UTC   (UTC-7)
 The winter offset of that zone stops agreeing in 2027. Two consequences worth
 remembering while both builders exist:
 
-* The equivalence proven here is about the horizon the calendar is populated
+- The equivalence proven here is about the horizon the calendar is populated
   over, not about arbitrary dates decades out.
-* A show in a zone whose rules changed after the database PHP was built with
+- A show in a zone whose rules changed after the database PHP was built with
   gets instances one hour off depending on which builder populated the
   calendar. Either keep exactly one owner of the calendar per database, or
   track the database versions: a PHP release refreshes the bundled one, and a
