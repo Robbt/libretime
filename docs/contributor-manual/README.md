@@ -9,3 +9,5 @@ Welcome to the **LibreTime contributor manual**, you should find guides to impro
 
 - Learn about the [development workflows of LibreTime](./development-workflows.md)
 - Start coding by setting up a [development environment](./development-environment.md)
+- Learn how the [legacy php application is being ported to the python API](./api-porting.md),
+  what is done, and what is left

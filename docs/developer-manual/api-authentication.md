@@ -132,3 +132,9 @@ objects belong to different people. One difference is deliberate and listed ther
 manager list, so a superadmin who did not create a webstream cannot delete it in
 the legacy application. That reads as a slip rather than an intention, and the api
 does not copy it.
+
+## Where the port stands
+
+Authentication is one part of replacing the legacy php application. What else `/api/v2`
+can do now - and the list of what it still cannot - is in
+[Porting the legacy application to the API](../contributor-manual/api-porting.md).
