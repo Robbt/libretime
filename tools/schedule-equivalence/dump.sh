@@ -28,15 +28,15 @@ if [ "${AB_MODE:-container}" = "local" ]; then
         local file="$1" query="$2"
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" -p "$EQ_DB_PORT" \
             -U "$EQ_DB_USER" -d "$EQ_DB_NAME" -v ON_ERROR_STOP=1 -q \
-            -c "\copy ($query) to stdout with (format csv, header)" >"$out/$file"
-    }
+            -c "\copy ($query) to stdout with (format csv, header)" > "$out/$file"
+  }
 else
     psql_dump() {
         local file="$1" query="$2"
         timeout 120 docker exec "${AB_DB_CONTAINER:-libretime-postgres-1}" \
             psql -U libretime -d libretime -v ON_ERROR_STOP=1 -q \
-            -c "\copy ($query) to stdout with (format csv, header)" >"$out/$file"
-    }
+            -c "\copy ($query) to stdout with (format csv, header)" > "$out/$file"
+  }
 fi
 
 # Instance identity: which show, when it airs, which flags it carries, and for
