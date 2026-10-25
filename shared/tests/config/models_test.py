@@ -32,7 +32,10 @@ def test_general_config_show_instance_populator():
     }
     assert GeneralConfig(**defaults).show_instance_populator == "legacy"
 
-    assert GeneralConfig(**defaults, show_instance_populator="api").show_instance_populator == "api"
+    assert (
+        GeneralConfig(**defaults, show_instance_populator="api").show_instance_populator
+        == "api"
+    )
 
     with pytest.raises(ValidationError):
         GeneralConfig(**defaults, show_instance_populator="playout")
