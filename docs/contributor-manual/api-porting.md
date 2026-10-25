@@ -189,6 +189,45 @@ compared against php's schedule output
 (`tools/playlist-scheduler-equivalence`), with `general.auto_playlist_builder` doing the
 same handover dance as the populator.
 
+## Browsing the api
+
+Three pages, all generated from the code and none of them a second source of truth:
+
+| URL                         | what it is                                                                                                                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/v2/schema`            | the OpenAPI 3.0 document, as YAML. Public on purpose — it is derived from serializers, viewsets and filter classes, so it contains no station data, and the application is open source. `test_public_document_leaks_no_station_secrets` keeps that claim honest. |
+| `/api/v2/schema/swagger-ui` | interactive. **Try it out works for a signed-in browser**: the page is same-origin with the api, so the legacy session cookie rides along, and the csrf token is a documented header parameter (`GET /api/v2/session/csrf-token` returns it).                    |
+| `/api/v2/schema/redoc`      | readable. Whole endpoint groups without collapsing panels — better for "what parameters does `/files` take".                                                                                                                                                     |
+
+Services call it with the station key instead: `Authorization: Api-Key <general.api_key>`,
+which is also in the document as a security scheme and needs no csrf token.
+
+The javascript for both pages is loaded from a **pinned** jsdelivr version
+(`SWAGGER_UI_VERSION`, `REDOC_VERSION` in the settings) rather than drf-spectacular's default
+`@latest`, so a station's documentation page cannot change or break with no commit and no
+release. The cost is honest and worth stating: a station with no internet access gets a page
+that never finishes loading. Vendoring the assets would fix that at roughly 1.5 MB of
+javascript and an exclusion for the large-file check, which has not seemed worth it yet.
+
+For a branch, a pull request, or a machine with no stack running,
+`tools/api-docs/index.html` renders the schema committed in the checkout:
+
+```bash
+python3 -m http.server 8000      # from the repository root
+# http://localhost:8000/tools/api-docs/
+# ?schema=http://localhost:8181/api/v2/schema   to read a running station's document
+# ?api=http://localhost:8181                    to send calls there instead
+```
+
+Calls from that page are unauthenticated — a browser will not attach a station's cookie to a
+cross-origin request — so use the station's own `/api/v2/schema/swagger-ui` for anything that
+needs to be someone.
+
+One use worth recommending to anyone weighing what to build next: open the document and read
+it against the screen you use daily. It is the shortest route to the list in the next section,
+because a page whose actions have no operations beside them is missing an endpoint, not a
+button.
+
 ## What is still missing
 
 The honest list, grouped by what kind of gap it is.
