@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 
+from ...filters import QUERY_BACKENDS
 from ...ownership import StampsOwner
 from ..models import Webstream, WebstreamMetadata
 from ..serializers import WebstreamMetadataSerializer, WebstreamSerializer
@@ -9,6 +10,11 @@ class WebstreamViewSet(StampsOwner, viewsets.ModelViewSet):
     queryset = Webstream.objects.all()
     serializer_class = WebstreamSerializer
     model_permission_name = "webstream"
+    filter_backends = QUERY_BACKENDS
+    filterset_fields = ("id", "owner", "mime")
+    search_fields = ("name", "description", "url")
+    ordering_fields = ("id", "name", "length", "last_played_at")
+    ordering = ("name", "id")
 
 
 class WebstreamMetadataViewSet(viewsets.ModelViewSet):

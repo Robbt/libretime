@@ -1,9 +1,11 @@
+from django_filters import rest_framework as filters
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
+from ...filters import QUERY_BACKENDS
 from ..models import Show, ShowDays, ShowHost, ShowInstance, ShowRebroadcast
 from ..serializers import (
     LEGACY_DERIVED_FIELD_NAMES,
@@ -30,6 +32,51 @@ from ..services.show import (
 )
 
 
+class ShowFilter(filters.FilterSet):
+    """The questions a show picker asks: which ones repeat, air, stream, or link."""
+
+    class Meta:
+        model = Show
+        fields = (
+            "id",
+            "genre",
+            "linked",
+            "linkable",
+            "live_auth_registered",
+            "auto_playlist",
+            "auto_playlist_enabled",
+            "intro_playlist",
+            "outro_playlist",
+        )
+
+
+class ShowInstanceFilter(filters.FilterSet):
+    """
+    One week of the calendar, or one show's nights.
+
+    The range is what makes this usable: the instances of a station run into months,
+    and a calendar that fetched them all to draw seven days would spend the request
+    throwing most of them away.
+    """
+
+    starts_after = filters.IsoDateTimeFilter(field_name="starts_at", lookup_expr="gte")
+    starts_before = filters.IsoDateTimeFilter(field_name="starts_at", lookup_expr="lte")
+    ends_after = filters.IsoDateTimeFilter(field_name="ends_at", lookup_expr="gte")
+    ends_before = filters.IsoDateTimeFilter(field_name="ends_at", lookup_expr="lte")
+
+    class Meta:
+        model = ShowInstance
+        fields = (
+            "id",
+            "show",
+            "instance",
+            "modified",
+            "rebroadcast",
+            "record_enabled",
+            "auto_playlist_built",
+        )
+
+
 class ShowViewSet(viewsets.ModelViewSet):
     """
     A show, and the calendar it makes.
@@ -47,6 +94,11 @@ class ShowViewSet(viewsets.ModelViewSet):
     queryset = Show.objects.all()
     serializer_class = ShowSerializer
     model_permission_name = "show"
+    filter_backends = QUERY_BACKENDS
+    filterset_class = ShowFilter
+    search_fields = ("name", "genre", "description")
+    ordering_fields = ("id", "name", "genre", "linked")
+    ordering = ("name", "id")
 
     #: Whether the payload describes a new show or the one in the url.
     def get_serializer_class(self):
@@ -157,12 +209,19 @@ class ShowDaysViewSet(viewsets.ModelViewSet):
     queryset = ShowDays.objects.all()
     serializer_class = ShowDaysSerializer
     model_permission_name = "showdays"
+    filter_backends = QUERY_BACKENDS
+    filterset_fields = ("id", "show", "week_day", "repeat_kind", "record_enabled")
+    ordering_fields = ("id", "first_show_on", "last_show_on", "week_day")
+    ordering = ("first_show_on", "id")
 
 
 class ShowHostViewSet(viewsets.ModelViewSet):
     queryset = ShowHost.objects.all()
     serializer_class = ShowHostSerializer
     model_permission_name = "showhost"
+    filter_backends = QUERY_BACKENDS
+    filterset_fields = ("id", "show", "user")
+    ordering_fields = ("id", "show", "user")
 
 
 class ShowInstanceViewSet(viewsets.ModelViewSet):
@@ -180,6 +239,12 @@ class ShowInstanceViewSet(viewsets.ModelViewSet):
     queryset = ShowInstance.objects.all()
     serializer_class = ShowInstanceSerializer
     model_permission_name = "showinstance"
+    filter_backends = QUERY_BACKENDS
+    filterset_class = ShowInstanceFilter
+    ordering_fields = ("id", "starts_at", "ends_at", "filled_time", "show")
+    # A calendar is drawn in time order, and this list has no consumer that cares
+    # otherwise - playout reads /schedule, which is left unordered on purpose.
+    ordering = ("starts_at", "id")
 
     def destroy(self, request, *args, **kwargs):
         scope = request.query_params.get("scope", "single")
@@ -221,4 +286,7 @@ class ShowInstanceViewSet(viewsets.ModelViewSet):
 class ShowRebroadcastViewSet(viewsets.ModelViewSet):
     queryset = ShowRebroadcast.objects.all()
     model_permission_name = "showrebroadcast"
+    filter_backends = QUERY_BACKENDS
+    filterset_fields = ("id", "show")
+    ordering_fields = ("id", "day_offset", "start_time")
     serializer_class = ShowRebroadcastSerializer

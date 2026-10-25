@@ -10,6 +10,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 
+from ...filters import QUERY_BACKENDS
 from ...schedule.models import Schedule
 from ..models import File
 from ..serializers import FileSerializer
@@ -26,12 +27,90 @@ class FileInUse(APIException):
     default_code = "file_in_use"
 
 
+class FileFilter(filters.FilterSet):
+    """
+    What the library screen can be asked for.
+
+    The exact filters are the columns the legacy library has a control for; the ranges
+    are the questions that were only ever asked in SQL - files between two durations,
+    added since a date, not played in a month. Lengths are Postgres intervals, so they
+    are compared as the api renders them: "00:04:32".
+    """
+
+    length_min = filters.CharFilter(field_name="length", lookup_expr="gte")
+    length_max = filters.CharFilter(field_name="length", lookup_expr="lte")
+    bpm_min = filters.NumberFilter(field_name="bpm", lookup_expr="gte")
+    bpm_max = filters.NumberFilter(field_name="bpm", lookup_expr="lte")
+    created_after = filters.IsoDateTimeFilter(
+        field_name="created_at", lookup_expr="gte"
+    )
+    created_before = filters.IsoDateTimeFilter(
+        field_name="created_at", lookup_expr="lte"
+    )
+    updated_after = filters.IsoDateTimeFilter(
+        field_name="updated_at", lookup_expr="gte"
+    )
+    updated_before = filters.IsoDateTimeFilter(
+        field_name="updated_at", lookup_expr="lte"
+    )
+    last_played_after = filters.IsoDateTimeFilter(
+        field_name="last_played_at", lookup_expr="gte"
+    )
+    last_played_before = filters.IsoDateTimeFilter(
+        field_name="last_played_at", lookup_expr="lte"
+    )
+
+    class Meta:
+        model = File
+        fields = (
+            "id",
+            "library",
+            "owner",
+            "import_status",
+            "mime",
+            "md5",
+            "genre",
+            "artist_name",
+            "album_title",
+            "composer",
+            "track_title",
+            "hidden",
+            "scheduled",
+            "part_of_list",
+            "exists",
+        )
+
+
 class FileViewSet(StampsOwner, viewsets.ModelViewSet):
     queryset = File.objects.all()
     serializer_class = FileSerializer
     model_permission_name = "file"
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ("md5", "genre")
+    filter_backends = QUERY_BACKENDS
+    filterset_class = FileFilter
+    search_fields = (
+        "track_title",
+        "artist_name",
+        "album_title",
+        "composer",
+        "isrc",
+        "md5",
+    )
+    ordering_fields = (
+        "id",
+        "track_title",
+        "artist_name",
+        "album_title",
+        "length",
+        "bpm",
+        "size",
+        "created_at",
+        "updated_at",
+        "last_played_at",
+    )
+    # Newest first, which is what a library list has always been asked for. Nothing
+    # in the running system reads this list - playout fetches files by id - so a
+    # stable order is a gain here rather than a change of contract.
+    ordering = ("-created_at", "id")
 
     # pylint: disable=invalid-name,unused-argument
     @action(detail=True, methods=["GET"])

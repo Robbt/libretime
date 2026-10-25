@@ -2,6 +2,7 @@ from django.db import models
 from django_filters import rest_framework as filters
 from rest_framework import viewsets
 
+from ...filters import QUERY_BACKENDS
 from ...mixins import ReadWriteSerializerMixin
 from ..models import Schedule
 from ..serializers import ReadScheduleSerializer, WriteScheduleSerializer
@@ -35,4 +36,9 @@ class ScheduleViewSet(ReadWriteSerializerMixin, viewsets.ModelViewSet):
     read_serializer_class = ReadScheduleSerializer
     write_serializer_class = WriteScheduleSerializer
     filterset_class = ScheduleFilter
+    filter_backends = QUERY_BACKENDS
+    # Sortable on request, but with no default ordering: playout reads this list as
+    # the queue it is about to broadcast, in the order it arrives. Sorting it to make
+    # a screen tidier would change what goes to air.
+    ordering_fields = ("id", "starts_at", "ends_at", "position")
     model_permission_name = "schedule"
