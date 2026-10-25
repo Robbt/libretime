@@ -8,12 +8,9 @@ bridge has to read rather than what it would like to read.
 
 import time
 
-# pytest asks for the db and user fixtures for their side effects, not their values
-# pylint: disable=unused-argument
-
 import pytest
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 
 from ....core.auth import (
     COOKIE_NAME,
@@ -24,6 +21,10 @@ from ....core.auth import (
 from ....core.auth._phpserialize import PhpDecodeError, loads
 from ....core.models import Session, User
 from ....core.models.role import Role
+
+# pytest asks for the db and user fixtures for their side effects, not their values
+# pylint: disable=unused-argument
+
 
 # Captured after a successful login of the user "api_spike". The password hash it
 # carries is a finding in itself: the legacy session leaks it to anyone who can

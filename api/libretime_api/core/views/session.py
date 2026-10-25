@@ -18,11 +18,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ...permission_constants import GROUPS
 from ..auth import COOKIE_NAME, csrf_token
 from ..auth.session_store import SESSION_LIFETIME, create, destroy
 from ..models import LoginAttempt, Session, User
 from ..models.role import Role
-from ...permission_constants import GROUPS
 
 # The message the legacy login page shows, kept identical so that a station's
 # translators and its users meet one wording rather than two. It says nothing

@@ -17,13 +17,16 @@ from ..serializers import FileSerializer
 logger = logging.getLogger(__name__)
 
 
+from ...ownership import StampsOwner
+
+
 class FileInUse(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_detail = "The file is currently used"
     default_code = "file_in_use"
 
 
-class FileViewSet(viewsets.ModelViewSet):
+class FileViewSet(StampsOwner, viewsets.ModelViewSet):
     queryset = File.objects.all()
     serializer_class = FileSerializer
     model_permission_name = "file"

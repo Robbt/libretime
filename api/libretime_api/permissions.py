@@ -5,11 +5,17 @@ from django.db.models import QuerySet
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 
+from .ownership import owner_of_parent
+
+# A POST asks for an "add" permission rather than a "change" one. It used to ask
+# for change, which left the add_* names in permission_constants checked by nothing
+# while a host - who may upload a file and make a playlist in the legacy station,
+# and is given add_file and add_playlist for it - could create nothing here.
 REQUEST_PERMISSION_TYPE_MAP = {
     "GET": "view",
     "HEAD": "view",
     "OPTIONS": "view",
-    "POST": "change",
+    "POST": "add",
     "PUT": "change",
     "DELETE": "delete",
     "PATCH": "change",
@@ -50,10 +56,61 @@ def permission_names(request, view) -> tuple[str | None, str | None]:
         # row - the api says the same with its view_* permissions.
         return f"view_{model}", None
 
+    if permission_type == "add":
+        # There is no row yet to own, so nothing to ask about one. What a create
+        # does require, when the row will belong to something else, is checked
+        # against that parent - see has_permission.
+        return f"add_{model}", None
+
     return (
         f"{permission_type}_{model}",
         f"{permission_type}_own_{model}",
     )
+
+
+def may_create_within(user, view, parent) -> bool:
+    """
+    Whether this user may put a new row into ``parent``.
+
+    The permission names come from the model being created, since that is where
+    the role's rights are written; the ownership comes from the parent, since a
+    child has no owner of its own. A role that may change any row of the kind -
+    a manager, an admin - is not asked about the parent at all.
+    """
+    model = view.queryset.model._meta.model_name
+
+    if user.has_perm(f"change_{model}"):
+        return True
+
+    if not user.has_perm(f"change_own_{model}"):
+        return False
+
+    try:
+        return is_owner(user, parent)
+    except AttributeError:
+        return False
+
+
+def may_act(user, obj, permission_type: str) -> bool:
+    """
+    Whether this user may act on this object, by role or by owning it.
+
+    The object's own model name is used rather than the view's, so the same rule
+    answers for a parent: adding a song to a playlist is a change to the playlist,
+    and the playlist is the thing whose owner matters.
+    """
+    model = obj._meta.model_name
+
+    if user.has_perm(f"{permission_type}_{model}", obj):
+        return True
+
+    if user.has_perm(f"{permission_type}_own_{model}", obj):
+        try:
+            return is_owner(user, obj)
+        except AttributeError:
+            return False
+
+    return False
 
 
 def is_owner(user, obj) -> bool:
@@ -119,10 +176,36 @@ class IsSystemTokenOrUser(BasePermission):
         if not _is_authenticated(request):
             return check_authorization_header(request)
 
-        return any(
+        allowed = any(
             name is not None and request.user.has_perm(name)
             for name in permission_names(request, view)
         )
+
+        if request.method != "POST":
+            return allowed
+
+        # A create has no row to inspect, but a row that belongs to something else
+        # - a song in a playlist, media in a show instance - belongs to whoever owns
+        # that thing, and the legacy application decides accordingly: Playlist.php
+        # and Block.php ask whether the caller may edit the playlist or block, and
+        # Scheduler.php asks canSchedule for the show. So the parent named in the
+        # body is the object the question is about, in both directions:
+        #
+        #   - a role may create rows of a kind it cannot change anywhere
+        #     (a host adds media to a show it hosts without any add_schedule
+        #     permission, because the show is theirs to put things into);
+        #   - a role may not create rows of a kind it may only change when it owns
+        #     (a host cannot add a song to somebody else's playlist).
+        parent = owner_of_parent(view, _body(request))
+
+        if parent is None:
+            return allowed
+
+        # When there is a parent, it decides. The role's create permission is not
+        # simply added to that answer: a host has no add_schedule at all, because
+        # "add media to a show" is not a right a station grants in the abstract,
+        # and requiring it would refuse the very case the parent rule exists for.
+        return may_create_within(request.user, view, parent)
 
     def has_object_permission(self, request, view, obj):
         """
@@ -157,3 +240,20 @@ class IsSystemTokenOrUser(BasePermission):
 
 def _is_authenticated(request) -> bool:
     return bool(request.user and request.user.is_authenticated)
+
+
+def _body(request):
+    """
+    The submitted data, or nothing when there is none to read.
+
+    A create is checked against its parent, which means looking at what was
+    posted. A request with no parser, or one whose body is not a mapping - an
+    upload that has not been parsed yet - simply has no parent to check here, and
+    the role permission stays the answer.
+    """
+    try:
+        data = request.data
+    except Exception:  # noqa: BLE001
+        return None
+
+    return data if hasattr(data, "get") else None

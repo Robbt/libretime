@@ -4,11 +4,11 @@ from rest_framework import routers
 from .views import (
     CsrfTokenView,
     InfoView,
-    SessionPermissionsView,
-    SessionView,
     LoginAttemptViewSet,
     PreferenceViewSet,
     ServiceRegisterViewSet,
+    SessionPermissionsView,
+    SessionView,
     StreamPreferencesView,
     StreamStateView,
     UserTokenViewSet,

@@ -12,9 +12,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-# The db fixtures are asked for their effect, not their value
-# pylint: disable=unused-argument
-
 from ....core.auth import csrf_token, identity
 from ....core.auth._phpserialize import dumps, loads
 from ....core.auth.session_store import (
@@ -29,6 +26,9 @@ from ....core.auth.session_store import (
 )
 from ....core.models import Session, User
 from ....core.models.role import Role
+
+# The db fixtures are asked for their effect, not their value
+# pylint: disable=unused-argument
 
 
 @pytest.fixture()

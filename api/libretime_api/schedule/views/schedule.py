@@ -28,6 +28,9 @@ class ScheduleFilter(filters.FilterSet):
 
 
 class ScheduleViewSet(ReadWriteSerializerMixin, viewsets.ModelViewSet):
+    # The row is content inside a show instance, so it belongs to the hosts of the
+    # show - the api shape of the legacy canSchedule rule.
+    owner_parent_field = "instance"
     queryset = Schedule.objects.all()
     read_serializer_class = ReadScheduleSerializer
     write_serializer_class = WriteScheduleSerializer
