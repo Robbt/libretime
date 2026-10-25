@@ -6,7 +6,11 @@ https://docs.djangoproject.com/en/3.2/topics/http/urls/
 """
 
 from django.urls import include, path
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 
 from .core.router import urls as core_urls
 from .history.router import urls as history_urls
@@ -34,5 +38,13 @@ urlpatterns = [
         "api/v2/schema/swagger-ui",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
+    ),
+    # ReDoc for reading: one page per endpoint group, no collapsed panels to open when
+    # someone wants to know what a filter parameter accepts. Swagger UI stays the place to
+    # actually try a call, because it sends the browser's session cookie.
+    path(
+        "api/v2/schema/redoc",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
     ),
 ]

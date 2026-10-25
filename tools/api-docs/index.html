@@ -1,0 +1,101 @@
+<!doctype html>
+<!--
+  Browse api/schema.yml without running anything.
+
+  From the repository root:
+
+      python3 -m http.server 8000
+      # then open http://localhost:8000/tools/api-docs/
+
+  Why this exists when a station already serves /api/v2/schema/swagger-ui: this page reads
+  the file in the checkout, so it works on a branch, before a stack is up, and in a pull
+  request review where the question is "what did this change to the surface". Point it at a
+  running station with ?schema=http://station/api/v2/schema to compare the two.
+
+  Two caveats worth stating rather than discovering:
+
+  "Try it out" here talks to the origin this page was served from, which is a static file
+  server with no api on it. Set ?api=http://localhost:8181 to send calls to a running
+  stack — and note that a browser will not attach a station's session cookie to a
+  cross-origin request, so authenticated calls are best made from the station's own
+  /api/v2/schema/swagger-ui, where the page and the api share an origin.
+
+  The javascript is loaded from a pinned jsdelivr version, matching SWAGGER_UI_VERSION in
+  api/libretime_api/settings/_internal.py (a test in the api suite keeps them equal), so an
+  offline machine gets a blank page here as it would on a station.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LibreTime API — schema in this checkout</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.0/swagger-ui.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+      }
+      .bar {
+        padding: 0.6rem 1rem;
+        background: #1b1b2f;
+        color: #eee;
+        font-size: 0.8rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .bar code {
+        background: #00000040;
+        padding: 0.1rem 0.35rem;
+      }
+      #app {
+        min-height: 60vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <strong>LibreTime API</strong>
+      <span>spec: <code id="spec"></code></span>
+      <span>calls to: <code id="target"></code></span>
+      <span style="opacity: 0.75"
+        >authenticated calls belong on the station's own
+        <code>/api/v2/schema/swagger-ui</code></span
+      >
+    </div>
+    <div id="app"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.0/swagger-ui-bundle.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      // Default: the schema committed in this checkout, two directories up.
+      const spec = params.get("schema") || "../../api/schema.yml";
+      // Default: this page's own origin, which for `python3 -m http.server` is a static
+      // server. Name a running stack with ?api= to make the calls mean something.
+      const api = params.get("api") || window.location.origin;
+
+      document.getElementById("spec").textContent = spec;
+      document.getElementById("target").textContent = api;
+
+      window.ui = SwaggerUIBundle({
+        url: spec,
+        dom_id: "#app",
+        deepLinking: true,
+        tryItOutEnabled: true,
+        // The document has no `servers` entry, so without this the calls would go to the
+        // file server above.
+        servers: [{ url: api, description: "api under test" }],
+        presets: [SwaggerUIBundle.presets.apis],
+        layout: "BaseLayout",
+        docExpansion: "list",
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+      });
+    </script>
+  </body>
+</html>

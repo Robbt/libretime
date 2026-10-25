@@ -182,6 +182,15 @@ SPECTACULAR_ENUM_NAME_OVERRIDES = {
     "SmartBlockKindEnum": "libretime_api.schedule.models.SmartBlock.Kind",
 }
 
+# The two documentation pages are static javascript, loaded from a CDN. drf-spectacular's
+# defaults point at `swagger-ui-dist@latest` and `redoc@latest`, which means a station's API
+# page can change appearance or break with no commit on our side and no release — the same
+# class of problem as an unpinned formatter, one layer over. Pinned like everything else
+# here; tools/api-docs/index.html repeats the swagger-ui version and a test keeps them
+# together.
+SWAGGER_UI_VERSION = "5.34.0"
+REDOC_VERSION = "3.0.1"
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "LibreTime API",
     "DESCRIPTION": (
@@ -213,6 +222,22 @@ SPECTACULAR_SETTINGS = {
         "drf_spectacular.hooks.postprocess_schema_enums",
         "libretime_api.openapi.libretime_authentication_extensions",
     ],
+    # Same assets, pinned versions, still from jsdelivr. Serving them offline would mean
+    # vendoring ~1.5 MB of javascript, which also trips the check-added-large-files hook's
+    # 500 KB default; an air-gapped station gets a page that explains nothing instead. If
+    # that ever matters, the fix is a vendored copy plus an exclusion, not a move back to
+    # @latest.
+    "SWAGGER_UI_DIST": f"https://cdn.jsdelivr.net/npm/swagger-ui-dist@{SWAGGER_UI_VERSION}",
+    "REDOC_DIST": f"https://cdn.jsdelivr.net/npm/redoc@{REDOC_VERSION}",
+    # Pulled from the same CDN by default; not worth a failed request per page load.
+    "SWAGGER_UI_FAVICON_HREF": "",
+    # The document is public on purpose, and not because permissions are lax: it is
+    # generated from serializers, viewsets and filter classes, so it contains no station
+    # data — no users, no shows, no library — and LibreTime's api is the same open-source
+    # surface anyone can read in the repository. What a request is *allowed to do* is still
+    # decided per request by IsSystemTokenOrUser and the ownership rules beside it. Naming
+    # the default here turns an inherited behaviour into a decision with a reason.
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
 }
 
 # Sentry
