@@ -25,6 +25,8 @@ from pathlib import Path
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -166,6 +168,14 @@ class UploadView(APIView):
     permission_classes = [IsSystemTokenOrUser]
     model_permission_name = "file"
 
+    @extend_schema(
+        request=OpenApiTypes.BINARY,
+        responses={201: FileSerializer},
+        description=(
+            "A multipart body holding one file. The optional ``library`` field puts "
+            "it in a library other than the station's default."
+        ),
+    )
     def post(self, request):
         upload = request.data.get("file")
 

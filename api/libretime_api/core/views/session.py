@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from django.db.models import F, Value
 from django.db.models.functions import Coalesce
-from rest_framework import status
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import serializers, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -90,6 +91,40 @@ def _reset_login_attempts(username: str, remote_addr: str | None) -> None:
         LoginAttempt.objects.filter(ip=remote_addr).delete()
 
 
+class LoginRequestSerializer(serializers.Serializer):
+    """What a sign-in request carries."""
+
+    username = serializers.CharField()
+    password = serializers.CharField()
+
+
+class SessionUserSerializer(serializers.Serializer):
+    """The person a session belongs to."""
+
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    role = serializers.CharField(help_text="The single-letter role code, as stored.")
+    role_label = serializers.CharField(help_text="The same role, spelled out.")
+    email = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+
+
+class CsrfTokenSerializer(serializers.Serializer):
+    """The token a session has to present back to write anything."""
+
+    csrf_token = serializers.CharField()
+
+
+class SessionPermissionsSerializer(serializers.Serializer):
+    """What the caller's role may do, in the names the api checks."""
+
+    role = serializers.CharField()
+    is_superuser = serializers.BooleanField()
+    permissions = serializers.ListField(child=serializers.CharField())
+
+
+@extend_schema(tags=["core"])
 class SessionView(APIView):
     """
     ``POST`` to log in, ``GET`` to ask who you are, ``DELETE`` to log out.
@@ -115,9 +150,17 @@ class SessionView(APIView):
 
         return [IsAuthenticated()]
 
+    @extend_schema(responses=SessionUserSerializer)
     def get(self, request):
-        return Response(_who(request.user))
+        return Response(SessionUserSerializer(_who(request.user)).data)
 
+    @extend_schema(
+        request=LoginRequestSerializer,
+        responses={
+            200: SessionUserSerializer,
+            401: OpenApiResponse(description="Wrong username or password."),
+        },
+    )
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
@@ -165,6 +208,7 @@ class SessionView(APIView):
 
         return response
 
+    @extend_schema(responses={204: None})
     def delete(self, request):
         """
         Log out of the station, not just of this request.
@@ -203,6 +247,7 @@ class CsrfTokenView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses=CsrfTokenSerializer)
     def get(self, request):
         if not isinstance(request.auth, Session):
             raise PermissionDenied("Only a legacy session has a CSRF token.")
@@ -215,6 +260,7 @@ class CsrfTokenView(APIView):
         return Response({"csrf_token": token})
 
 
+@extend_schema(tags=["core"])
 class SessionPermissionsView(APIView):
     """
     What the caller's role may do, in the words the api itself uses.
@@ -228,6 +274,7 @@ class SessionPermissionsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses=SessionPermissionsSerializer)
     def get(self, request):
         user: User = request.user
 
@@ -260,4 +307,4 @@ def _who(user: User) -> dict:
     }
 
 
-__all__ = ["SessionPermissionsView", "SessionView"]
+__all__ = ["CsrfTokenView", "SessionPermissionsView", "SessionView"]

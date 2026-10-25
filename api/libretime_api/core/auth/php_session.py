@@ -37,6 +37,7 @@ from secrets import compare_digest
 from typing import Any
 
 from django.utils import timezone
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -69,6 +70,22 @@ CSRF_FIELD = "csrf_token"
 CSRF_FIELD_MEDIA_TYPES = (FormParser.media_type, MultiPartParser.media_type)
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+
+
+class PhpSessionScheme(OpenApiAuthenticationExtension):
+    """
+    How to describe the session cookie in the schema.
+
+    Without this, drf-spectacular warns once per view that it cannot resolve the
+    authenticator, and the shipped documentation page describes every endpoint as
+    taking no credentials at all - which is close to the opposite of the truth.
+    """
+
+    target_class = "libretime_api.core.auth.php_session.PhpSessionAuthentication"
+    name = "phpSessionCookie"
+
+    def get_security_definition(self, auto_schema):
+        return {"type": "apiKey", "in": "cookie", "name": COOKIE_NAME}
 
 
 class PhpSessionAuthentication(BaseAuthentication):
