@@ -184,9 +184,35 @@ SPECTACULAR_ENUM_NAME_OVERRIDES = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "LibreTime API",
-    "DESCRIPTION": "Radio Broadcast & Automation Platform",
+    "DESCRIPTION": (
+        "Radio Broadcast & Automation Platform\n\n"
+        "### Authentication\n\n"
+        "Three credentials are accepted, and the generated documentation lists them on "
+        "every operation:\n\n"
+        "- **Session cookie** (`PHPSESSID`) — a browser that signed in to the station's "
+        "interface is the same user here, with the same roles and the same ownership of "
+        "its shows and files. Cookie requests must also carry the csrf token, like the "
+        "interface does: `GET /api/v2/session/csrf-token` returns the one for the current "
+        "session, and it goes in the `X-CSRFToken` header (or a `csrf_token` form field). "
+        "The legacy application validates the same value from the same session, so one "
+        "sign-in works across both.\n"
+        "- **Station api key** — `Authorization: Api-Key <general.api_key>`, the "
+        "credential the other LibreTime services use. Not subject to the csrf "
+        "requirement, since it is not a cookie and cannot be sent by a browser as a "
+        "side effect of someone visiting a page.\n"
+        "- **HTTP basic** — a station user's own username and password.\n\n"
+        "Permissions are per object as well as per role: a host may change the shows they "
+        "host and the files they uploaded, and being allowed to create something does not "
+        "imply being allowed to change someone else's.\n"
+    ),
     "VERSION": API_VERSION,
     "ENUM_NAME_OVERRIDES": SPECTACULAR_ENUM_NAME_OVERRIDES,
+    # The default enum hook first, then the parts of LibreTime's authentication the
+    # generator cannot see (see libretime_api/openapi.py for why they are not visible).
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "libretime_api.openapi.libretime_authentication_extensions",
+    ],
 }
 
 # Sentry

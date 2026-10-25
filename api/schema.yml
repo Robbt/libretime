@@ -2,7 +2,18 @@ openapi: 3.0.3
 info:
   title: LibreTime API
   version: 2.0.0
-  description: Radio Broadcast & Automation Platform
+  description: |
+    Radio Broadcast & Automation Platform
+
+    ### Authentication
+
+    Three credentials are accepted, and the generated documentation lists them on every operation:
+
+    - **Session cookie** (`PHPSESSID`) — a browser that signed in to the station's interface is the same user here, with the same roles and the same ownership of its shows and files. Cookie requests must also carry the csrf token, like the interface does: `GET /api/v2/session/csrf-token` returns the one for the current session, and it goes in the `X-CSRFToken` header (or a `csrf_token` form field). The legacy application validates the same value from the same session, so one sign-in works across both.
+    - **Station api key** — `Authorization: Api-Key <general.api_key>`, the credential the other LibreTime services use. Not subject to the csrf requirement, since it is not a cookie and cannot be sent by a browser as a side effect of someone visiting a page.
+    - **HTTP basic** — a station user's own username and password.
+
+    Permissions are per object as well as per role: a host may change the shows they host and the files they uploaded, and being allowed to create something does not imply being allowed to change someone else's.
 paths:
   /api/v2/files:
     get:
@@ -152,6 +163,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -193,6 +205,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -200,6 +213,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/File"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/files/{id}:
     get:
       operationId: files_retrieve
@@ -228,6 +254,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -256,6 +283,18 @@ paths:
             type: integer
           description: A unique integer value identifying this file.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - files
       requestBody:
@@ -274,6 +313,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -302,6 +342,18 @@ paths:
             type: integer
           description: A unique integer value identifying this file.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - files
       requestBody:
@@ -319,6 +371,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -347,12 +400,25 @@ paths:
             type: integer
           description: A unique integer value identifying this file.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - files
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -384,6 +450,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -400,6 +467,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -429,6 +497,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -436,6 +505,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ImportedPodcast"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/imported-podcasts/{id}:
     get:
       operationId: imported_podcasts_retrieve
@@ -452,6 +534,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -468,6 +551,18 @@ paths:
             type: integer
           description: A unique integer value identifying this imported podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - imported-podcasts
       requestBody:
@@ -486,6 +581,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -502,6 +598,18 @@ paths:
             type: integer
           description: A unique integer value identifying this imported podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - imported-podcasts
       requestBody:
@@ -519,6 +627,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -535,12 +644,25 @@ paths:
             type: integer
           description: A unique integer value identifying this imported podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - imported-podcasts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -554,6 +676,7 @@ paths:
         - cookieAuth: []
         - basicAuth: []
         - {}
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -570,6 +693,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -599,6 +723,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -606,6 +731,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Library"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/libraries/{id}:
     get:
       operationId: libraries_retrieve
@@ -622,6 +760,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -638,6 +777,18 @@ paths:
             type: integer
           description: A unique integer value identifying this library.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - libraries
       requestBody:
@@ -656,6 +807,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -672,6 +824,18 @@ paths:
             type: integer
           description: A unique integer value identifying this library.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - libraries
       requestBody:
@@ -689,6 +853,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -705,12 +870,25 @@ paths:
             type: integer
           description: A unique integer value identifying this library.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - libraries
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -754,6 +932,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -783,6 +962,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -790,6 +970,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListenerCount"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/listener-counts/{id}:
     get:
       operationId: listener_counts_retrieve
@@ -806,6 +999,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -822,6 +1016,18 @@ paths:
             type: integer
           description: A unique integer value identifying this listener count.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - listener-counts
       requestBody:
@@ -840,6 +1046,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -856,6 +1063,18 @@ paths:
             type: integer
           description: A unique integer value identifying this listener count.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - listener-counts
       requestBody:
@@ -873,6 +1092,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -889,12 +1109,25 @@ paths:
             type: integer
           description: A unique integer value identifying this listener count.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - listener-counts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -928,6 +1161,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -957,6 +1191,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -964,6 +1199,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/LiveLog"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/live-logs/{id}:
     get:
       operationId: live_logs_retrieve
@@ -980,6 +1228,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -996,6 +1245,18 @@ paths:
             type: integer
           description: A unique integer value identifying this live log.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - live-logs
       requestBody:
@@ -1014,6 +1275,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1030,6 +1292,18 @@ paths:
             type: integer
           description: A unique integer value identifying this live log.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - live-logs
       requestBody:
@@ -1047,6 +1321,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1063,12 +1338,25 @@ paths:
             type: integer
           description: A unique integer value identifying this live log.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - live-logs
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -1081,6 +1369,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1110,6 +1399,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -1117,6 +1407,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/LoginAttempt"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/login-attempts/{ip}:
     get:
       operationId: login_attempts_retrieve
@@ -1133,6 +1436,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1149,6 +1453,18 @@ paths:
             type: string
           description: A unique value identifying this login attempt.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - login-attempts
       requestBody:
@@ -1167,6 +1483,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1183,6 +1500,18 @@ paths:
             type: string
           description: A unique value identifying this login attempt.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - login-attempts
       requestBody:
@@ -1200,6 +1529,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1216,12 +1546,25 @@ paths:
             type: string
           description: A unique value identifying this login attempt.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - login-attempts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -1247,6 +1590,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1276,6 +1620,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -1283,6 +1628,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/MountName"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/mount-names/{id}:
     get:
       operationId: mount_names_retrieve
@@ -1299,6 +1657,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1315,6 +1674,18 @@ paths:
             type: integer
           description: A unique integer value identifying this mount name.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - mount-names
       requestBody:
@@ -1333,6 +1704,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1349,6 +1721,18 @@ paths:
             type: integer
           description: A unique integer value identifying this mount name.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - mount-names
       requestBody:
@@ -1366,6 +1750,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1382,12 +1767,25 @@ paths:
             type: integer
           description: A unique integer value identifying this mount name.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - mount-names
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -1445,6 +1843,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1474,6 +1873,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -1481,6 +1881,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlaylistContent"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/playlist-contents/{id}:
     get:
       operationId: playlist_contents_retrieve
@@ -1497,6 +1910,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1513,6 +1927,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playlist content.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playlist-contents
       requestBody:
@@ -1531,6 +1957,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1547,6 +1974,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playlist content.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playlist-contents
       requestBody:
@@ -1564,6 +2003,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1580,12 +2020,25 @@ paths:
             type: integer
           description: A unique integer value identifying this playlist content.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playlist-contents
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -1631,6 +2084,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1672,6 +2126,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -1679,6 +2134,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Playlist"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/playlists/{id}:
     get:
       operationId: playlists_retrieve
@@ -1707,6 +2175,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1735,6 +2204,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playlist.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playlists
       requestBody:
@@ -1753,6 +2234,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1781,6 +2263,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playlist.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playlists
       requestBody:
@@ -1798,6 +2292,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1826,12 +2321,25 @@ paths:
             type: integer
           description: A unique integer value identifying this playlist.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playlists
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -1879,6 +2387,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1908,6 +2417,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -1915,6 +2425,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayoutHistory"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/playout-history-metadata:
     get:
       operationId: playout_history_metadata_list
@@ -1953,6 +2476,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -1982,6 +2506,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -1989,6 +2514,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayoutHistoryMetadata"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/playout-history-metadata/{id}:
     get:
       operationId: playout_history_metadata_retrieve
@@ -2005,6 +2543,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2021,6 +2560,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history metadata.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-metadata
       requestBody:
@@ -2039,6 +2590,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2055,6 +2607,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history metadata.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-metadata
       requestBody:
@@ -2072,6 +2636,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2088,12 +2653,25 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history metadata.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-metadata
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -2106,6 +2684,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2135,6 +2714,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -2142,6 +2722,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayoutHistoryTemplateField"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/playout-history-template-fields/{id}:
     get:
       operationId: playout_history_template_fields_retrieve
@@ -2160,6 +2753,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2178,6 +2772,18 @@ paths:
             A unique integer value identifying this playout history template
             field.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-template-fields
       requestBody:
@@ -2196,6 +2802,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2214,6 +2821,18 @@ paths:
             A unique integer value identifying this playout history template
             field.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-template-fields
       requestBody:
@@ -2231,6 +2850,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2249,12 +2869,25 @@ paths:
             A unique integer value identifying this playout history template
             field.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-template-fields
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -2267,6 +2900,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2296,6 +2930,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -2303,6 +2938,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlayoutHistoryTemplate"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/playout-history-templates/{id}:
     get:
       operationId: playout_history_templates_retrieve
@@ -2319,6 +2967,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2335,6 +2984,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history template.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-templates
       requestBody:
@@ -2353,6 +3014,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2369,6 +3031,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history template.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-templates
       requestBody:
@@ -2386,6 +3060,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2402,12 +3077,25 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history template.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history-templates
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -2427,6 +3115,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2443,6 +3132,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history
       requestBody:
@@ -2461,6 +3162,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2477,6 +3179,18 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history
       requestBody:
@@ -2494,6 +3208,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2510,12 +3225,25 @@ paths:
             type: integer
           description: A unique integer value identifying this playout history.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - playout-history
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -2553,6 +3281,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2582,6 +3311,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -2589,6 +3319,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PodcastEpisode"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/podcast-episodes/{id}:
     get:
       operationId: podcast_episodes_retrieve
@@ -2605,6 +3348,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2621,6 +3365,18 @@ paths:
             type: integer
           description: A unique integer value identifying this podcast episode.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - podcast-episodes
       requestBody:
@@ -2639,6 +3395,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2655,6 +3412,18 @@ paths:
             type: integer
           description: A unique integer value identifying this podcast episode.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - podcast-episodes
       requestBody:
@@ -2672,6 +3441,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2688,12 +3458,25 @@ paths:
             type: integer
           description: A unique integer value identifying this podcast episode.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - podcast-episodes
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -2743,6 +3526,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2784,6 +3568,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -2791,6 +3576,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Podcast"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/podcasts/{id}:
     get:
       operationId: podcasts_retrieve
@@ -2819,6 +3617,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2847,6 +3646,18 @@ paths:
             type: integer
           description: A unique integer value identifying this podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - podcasts
       requestBody:
@@ -2865,6 +3676,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2893,6 +3705,18 @@ paths:
             type: integer
           description: A unique integer value identifying this podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - podcasts
       requestBody:
@@ -2910,6 +3734,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2938,12 +3763,25 @@ paths:
             type: integer
           description: A unique integer value identifying this podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - podcasts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -2956,6 +3794,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -2984,6 +3823,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -2991,6 +3831,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Preference"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/preferences/{id}:
     get:
       operationId: preferences_retrieve
@@ -3007,6 +3860,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3023,6 +3877,18 @@ paths:
             type: integer
           description: A unique integer value identifying this preference.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - preferences
       requestBody:
@@ -3040,6 +3906,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3056,6 +3923,18 @@ paths:
             type: integer
           description: A unique integer value identifying this preference.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - preferences
       requestBody:
@@ -3073,6 +3952,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3089,12 +3969,25 @@ paths:
             type: integer
           description: A unique integer value identifying this preference.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - preferences
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -3158,6 +4051,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3193,6 +4087,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -3200,6 +4095,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/WriteSchedule"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/schedule/{id}:
     get:
       operationId: schedule_retrieve
@@ -3222,6 +4130,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3244,6 +4153,18 @@ paths:
             type: integer
           description: A unique integer value identifying this schedule.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - schedule
       requestBody:
@@ -3262,6 +4183,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3284,6 +4206,18 @@ paths:
             type: integer
           description: A unique integer value identifying this schedule.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - schedule
       requestBody:
@@ -3301,6 +4235,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3323,12 +4258,25 @@ paths:
             type: integer
           description: A unique integer value identifying this schedule.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - schedule
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -3459,6 +4407,7 @@ paths:
         - cookieAuth: []
         - basicAuth: []
         - {}
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3488,6 +4437,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3517,6 +4467,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -3524,6 +4475,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServiceRegister"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/service-registers/{name}:
     get:
       operationId: service_registers_retrieve
@@ -3540,6 +4504,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3556,6 +4521,18 @@ paths:
             type: string
           description: A unique value identifying this service register.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - service-registers
       requestBody:
@@ -3574,6 +4551,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3590,6 +4568,18 @@ paths:
             type: string
           description: A unique value identifying this service register.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - service-registers
       requestBody:
@@ -3607,6 +4597,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3623,12 +4614,25 @@ paths:
             type: string
           description: A unique value identifying this service register.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - service-registers
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -3654,6 +4658,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3689,6 +4694,7 @@ paths:
         - cookieAuth: []
         - basicAuth: []
         - {}
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3698,6 +4704,19 @@ paths:
           description: ""
         "401":
           description: Wrong username or password.
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
     delete:
       operationId: session_destroy
       description: |-
@@ -3714,9 +4733,23 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/session/csrf-token:
     get:
       operationId: session_csrf_token_retrieve
@@ -3738,6 +4771,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3762,6 +4796,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3847,6 +4882,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3876,6 +4912,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -3883,6 +4920,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShowDays"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/show-days/{id}:
     get:
       operationId: show_days_retrieve
@@ -3899,6 +4949,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3915,6 +4966,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show days.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-days
       requestBody:
@@ -3933,6 +4996,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3949,6 +5013,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show days.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-days
       requestBody:
@@ -3966,6 +5042,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -3982,12 +5059,25 @@ paths:
             type: integer
           description: A unique integer value identifying this show days.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-days
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -4025,6 +5115,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4054,6 +5145,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -4061,6 +5153,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShowHost"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/show-hosts/{id}:
     get:
       operationId: show_hosts_retrieve
@@ -4077,6 +5182,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4093,6 +5199,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show host.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-hosts
       requestBody:
@@ -4111,6 +5229,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4127,6 +5246,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show host.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-hosts
       requestBody:
@@ -4144,6 +5275,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4160,12 +5292,25 @@ paths:
             type: integer
           description: A unique integer value identifying this show host.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-hosts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -4255,6 +5400,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4293,6 +5439,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -4300,6 +5447,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShowInstance"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/show-instances/{id}:
     get:
       operationId: show_instances_retrieve
@@ -4325,6 +5485,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4350,6 +5511,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show instance.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-instances
       requestBody:
@@ -4368,6 +5541,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4393,6 +5567,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show instance.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-instances
       requestBody:
@@ -4410,6 +5596,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4435,12 +5622,25 @@ paths:
             type: integer
           description: A unique integer value identifying this show instance.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-instances
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -4474,6 +5674,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4503,6 +5704,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -4510,6 +5712,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShowRebroadcast"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/show-rebroadcasts/{id}:
     get:
       operationId: show_rebroadcasts_retrieve
@@ -4526,6 +5741,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4542,6 +5758,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show rebroadcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-rebroadcasts
       requestBody:
@@ -4560,6 +5788,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4576,6 +5805,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show rebroadcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-rebroadcasts
       requestBody:
@@ -4593,6 +5834,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4609,12 +5851,25 @@ paths:
             type: integer
           description: A unique integer value identifying this show rebroadcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - show-rebroadcasts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -4687,6 +5942,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4727,6 +5983,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -4734,6 +5991,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShowCreate"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/shows/{id}:
     get:
       operationId: shows_retrieve
@@ -4761,6 +6031,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4784,6 +6055,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - shows
       requestBody:
@@ -4802,6 +6085,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4829,6 +6113,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - shows
       requestBody:
@@ -4846,6 +6142,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4873,12 +6170,25 @@ paths:
             type: integer
           description: A unique integer value identifying this show.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - shows
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -4898,6 +6208,18 @@ paths:
             type: integer
           description: A unique integer value identifying this show.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - shows
       requestBody:
@@ -4916,6 +6238,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4957,6 +6280,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -4986,6 +6310,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -4993,6 +6318,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/SmartBlockContent"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/smart-block-contents/{id}:
     get:
       operationId: smart_block_contents_retrieve
@@ -5009,6 +6347,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5025,6 +6364,18 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block content.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-block-contents
       requestBody:
@@ -5043,6 +6394,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5059,6 +6411,18 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block content.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-block-contents
       requestBody:
@@ -5076,6 +6440,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5092,12 +6457,25 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block content.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-block-contents
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -5110,6 +6488,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5139,6 +6518,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -5146,6 +6526,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/SmartBlockCriteria"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/smart-block-criteria/{id}:
     get:
       operationId: smart_block_criteria_retrieve
@@ -5162,6 +6555,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5178,6 +6572,18 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block criteria.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-block-criteria
       requestBody:
@@ -5196,6 +6602,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5212,6 +6619,18 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block criteria.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-block-criteria
       requestBody:
@@ -5229,6 +6648,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5245,12 +6665,25 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block criteria.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-block-criteria
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -5307,6 +6740,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5348,6 +6782,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -5355,6 +6790,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/SmartBlock"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/smart-blocks/{id}:
     get:
       operationId: smart_blocks_retrieve
@@ -5383,6 +6831,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5411,6 +6860,18 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-blocks
       requestBody:
@@ -5429,6 +6890,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5457,6 +6919,18 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-blocks
       requestBody:
@@ -5474,6 +6948,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5502,12 +6977,25 @@ paths:
             type: integer
           description: A unique integer value identifying this smart block.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - smart-blocks
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -5520,6 +7008,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5549,6 +7038,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -5556,6 +7046,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/StationPodcast"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/station-podcasts/{id}:
     get:
       operationId: station_podcasts_retrieve
@@ -5572,6 +7075,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5588,6 +7092,18 @@ paths:
             type: integer
           description: A unique integer value identifying this station podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - station-podcasts
       requestBody:
@@ -5606,6 +7122,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5622,6 +7139,18 @@ paths:
             type: integer
           description: A unique integer value identifying this station podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - station-podcasts
       requestBody:
@@ -5639,6 +7168,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5655,12 +7185,25 @@ paths:
             type: integer
           description: A unique integer value identifying this station podcast.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - station-podcasts
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -5673,6 +7216,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5689,6 +7233,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5718,6 +7263,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5747,6 +7293,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -5754,6 +7301,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Timestamp"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/timestamps/{id}:
     get:
       operationId: timestamps_retrieve
@@ -5770,6 +7330,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5786,6 +7347,18 @@ paths:
             type: integer
           description: A unique integer value identifying this timestamp.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - timestamps
       requestBody:
@@ -5804,6 +7377,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5820,6 +7394,18 @@ paths:
             type: integer
           description: A unique integer value identifying this timestamp.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - timestamps
       requestBody:
@@ -5837,6 +7423,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5853,12 +7440,25 @@ paths:
             type: integer
           description: A unique integer value identifying this timestamp.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - timestamps
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -5880,6 +7480,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -5887,6 +7488,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/File"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/user-tokens:
     get:
       operationId: user_tokens_list
@@ -5896,6 +7510,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5925,6 +7540,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -5932,6 +7548,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserToken"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/user-tokens/{id}:
     get:
       operationId: user_tokens_retrieve
@@ -5948,6 +7577,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5964,6 +7594,18 @@ paths:
             type: integer
           description: A unique integer value identifying this user token.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - user-tokens
       requestBody:
@@ -5982,6 +7624,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -5998,6 +7641,18 @@ paths:
             type: integer
           description: A unique integer value identifying this user token.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - user-tokens
       requestBody:
@@ -6015,6 +7670,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6031,12 +7687,25 @@ paths:
             type: integer
           description: A unique integer value identifying this user token.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - user-tokens
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -6082,6 +7751,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6111,6 +7781,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -6118,6 +7789,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/users/{id}:
     get:
       operationId: users_retrieve
@@ -6134,6 +7818,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6150,6 +7835,18 @@ paths:
             type: integer
           description: A unique integer value identifying this user.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - users
       requestBody:
@@ -6168,6 +7865,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6184,6 +7882,18 @@ paths:
             type: integer
           description: A unique integer value identifying this user.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - users
       requestBody:
@@ -6201,6 +7911,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6217,12 +7928,25 @@ paths:
             type: integer
           description: A unique integer value identifying this user.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - users
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -6236,6 +7960,7 @@ paths:
         - cookieAuth: []
         - basicAuth: []
         - {}
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6252,6 +7977,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6281,6 +8007,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -6288,6 +8015,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/WebstreamMetadata"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/webstream-metadata/{id}:
     get:
       operationId: webstream_metadata_retrieve
@@ -6304,6 +8044,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6320,6 +8061,18 @@ paths:
             type: integer
           description: A unique integer value identifying this webstream metadata.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - webstream-metadata
       requestBody:
@@ -6338,6 +8091,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6354,6 +8108,18 @@ paths:
             type: integer
           description: A unique integer value identifying this webstream metadata.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - webstream-metadata
       requestBody:
@@ -6371,6 +8137,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6387,12 +8154,25 @@ paths:
             type: integer
           description: A unique integer value identifying this webstream metadata.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - webstream-metadata
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -6442,6 +8222,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6483,6 +8264,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "201":
           content:
@@ -6490,6 +8272,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/Webstream"
           description: ""
+      parameters:
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
   /api/v2/webstreams/{id}:
     get:
       operationId: webstreams_retrieve
@@ -6518,6 +8313,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6546,6 +8342,18 @@ paths:
             type: integer
           description: A unique integer value identifying this webstream.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - webstreams
       requestBody:
@@ -6564,6 +8372,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6592,6 +8401,18 @@ paths:
             type: integer
           description: A unique integer value identifying this webstream.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - webstreams
       requestBody:
@@ -6609,6 +8430,7 @@ paths:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "200":
           content:
@@ -6637,12 +8459,25 @@ paths:
             type: integer
           description: A unique integer value identifying this webstream.
           required: true
+        - name: X-CSRFToken
+          in: header
+          required: false
+          description:
+            Required for cookie-authenticated requests, including every request
+            a browser makes on behalf of a logged-in user; ignored otherwise. Fetch
+            the value for the current session with `GET /api/v2/session/csrf-token`
+            and send it back verbatim. A form or multipart body may carry the same value
+            in a `csrf_token` field instead. This is the token the legacy interface
+            uses for the same purpose — one session, one token, both applications.
+          schema:
+            type: string
       tags:
         - webstreams
       security:
         - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
+        - stationApiKey: []
       responses:
         "204":
           description: No response body
@@ -9510,3 +11345,13 @@ components:
       type: apiKey
       in: cookie
       name: PHPSESSID
+    stationApiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description:
+        "Station-wide service credential: send the value of `general.api_key`
+        from the station configuration as `Authorization: Api-Key <key>`. This is
+        what the other LibreTime services use; a browser logged in to the station
+        uses the session cookie instead. Requests carrying it are not subject to the
+        csrf requirement."
