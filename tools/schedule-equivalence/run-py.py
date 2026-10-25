@@ -13,7 +13,6 @@ import django
 django.setup()
 
 from django.db import connection  # noqa: E402
-
 from libretime_api.schedule.services import populate_show_instances  # noqa: E402
 
 until = datetime.strptime(
