@@ -35,6 +35,25 @@ SPEC_DIR = Path(
 # hides a real difference, delete it and let the comparison complain.
 CLOCK = re.compile(r"^\d+:\d{1,2}(:\d{1,2})?(\.\d+)?$")
 
+# Differences that are decisions, kept where they can be argued with.
+#
+# Each is a (scenario, table) pair and the reason it is expected. A comparison that
+# goes red on every run teaches nobody to read it; a comparison that goes green on
+# everything teaches nobody to trust it. So these are matched exactly - same
+# scenario, same table - and anything else that moves is still a failure.
+DOCUMENTED = {
+    (
+        "delete_whole_show",
+        "cc_show_days",
+    ): "the port deletes the show's repeat rules; php leaves them, because "
+    "cc_show_days.show_id has no foreign key to cascade (see README)",
+    (
+        "delete_whole_show",
+        "cc_show_instances",
+    ): "the port deletes the show's soft-deleted instances; php leaves them for the "
+    "same reason. The port is the side that matches upstream's own dataset here.",
+}
+
 
 def canon(value: object) -> str:
     if value is None:
@@ -122,7 +141,8 @@ def parse_spec(name: str) -> dict[str, list[dict[str, str]]]:
 
 def compare_tables(
     label: str, want: dict[str, list[dict[str, str]]], got: dict[str, list[dict[str, str]]]
-) -> list[str]:
+) -> list[tuple[str, str, str]]:
+    """Differences as (scenario, table, message) triples."""
     problems = []
     names = sorted(set(want) | set(got))
 
@@ -132,7 +152,12 @@ def compare_tables(
 
         if len(want_rows) != len(got_rows):
             problems.append(
-                f"{label} {table}: {len(want_rows)} rows expected, {len(got_rows)} produced"
+                (
+                    label,
+                    table,
+                    f"{label} {table}: {len(want_rows)} rows expected, "
+                    f"{len(got_rows)} produced",
+                )
             )
 
         for index, (left, right) in enumerate(zip(want_rows, got_rows)):
@@ -142,13 +167,17 @@ def compare_tables(
                 a, b = left.get(column), right.get(column)
 
                 if a is None:
-                    problems.append(f"{label} {table} id={key} {column}: absent in the first")
+                    detail = "absent in the first"
                 elif b is None:
-                    problems.append(f"{label} {table} id={key} {column}: absent in the second")
+                    detail = "absent in the second"
                 elif a != b:
-                    problems.append(
-                        f"{label} {table} id={key} {column}: '{a}' vs '{b}'"
-                    )
+                    detail = f"'{a}' vs '{b}'"
+                else:
+                    continue
+
+                problems.append(
+                    (label, table, f"{label} {table} id={key} {column}: {detail}")
+                )
 
     return problems
 
@@ -217,19 +246,44 @@ def load_scenarios():
     return json.loads(Path(__file__).with_name("scenarios.json").read_text())
 
 
-def report(problems: list[str]) -> int:
-    if not problems:
-        print("identical")
+def report(problems: list[tuple[str, str, str]]) -> int:
+    """
+    Print the differences, and say which of them were already known.
+
+    A known difference is named in full, every run, with its reason: it is a claim
+    about the code, and claims that stop being printed stop being checked.
+    """
+    unexpected = []
+    seen = set()
+
+    for label, table, message in problems:
+        scenario = label.strip("[]")
+        if (scenario, table) in DOCUMENTED:
+            seen.add((scenario, table))
+        else:
+            unexpected.append(message)
+
+    known = sorted(DOCUMENTED.keys() & seen)
+
+    if not unexpected:
+        print("identical" if not known else f"identical, {len(known)} documented difference"
+                                            f"{'s' if len(known) > 1 else ''}")
+
+        for scenario, table in known:
+            print(f"  [{scenario}] {table}: {DOCUMENTED[(scenario, table)]}")
 
         return 0
 
-    print(f"\n{len(problems)} differences", file=sys.stderr)
+    print(f"\n{len(unexpected)} differences", file=sys.stderr)
 
-    for problem in problems[:60]:
+    for problem in unexpected[:60]:
         print(f"  {problem}", file=sys.stderr)
 
-    if len(problems) > 60:
-        print(f"  ... and {len(problems) - 60} more", file=sys.stderr)
+    if len(unexpected) > 60:
+        print(f"  ... and {len(unexpected) - 60} more", file=sys.stderr)
+
+    for scenario, table in known:
+        print(f"  (also, as documented) [{scenario}] {table}", file=sys.stderr)
 
     return 1
 

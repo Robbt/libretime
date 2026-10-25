@@ -39,7 +39,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ...notify.playout import update_schedule
-from ..models import Show, ShowDays, ShowHost, ShowRebroadcast
+from ..models import Schedule, Show, ShowDays, ShowHost, ShowInstance, ShowRebroadcast
 from .populate import NO_REPEAT, InstanceBuilder, PreferenceStore, to_instant
 
 logger = logging.getLogger(__name__)
@@ -696,3 +696,243 @@ def _time(value: Any, field_name: str) -> time:
 
 
 __all__ = ["Rebroadcast", "ShowForm", "ShowFormError", "save_show"]
+
+
+# -- deleting -------------------------------------------------------------------
+
+
+class ShowInstanceNotFound(KeyError):
+    """The instance the caller named does not exist."""
+
+
+class ShowInstanceInThePast(ValueError):
+    """
+    The instance has already aired.
+
+    php says "Cannot delete a show instance in the past", and the reason is not
+    tidiness: playout keeps its own idea of what it has broadcast, and history that
+    refers to an instance nobody can look up is worse than a show nobody wanted.
+    """
+
+
+def delete_show_instance(
+    instance_id: int,
+    *,
+    single_instance: bool = False,
+    now: datetime | None = None,
+) -> int:
+    """
+    Take an instance - or an instance and everything after it - off the air.
+
+    Returns the id of the show it belonged to, which the caller needs because a
+    show with no instances left stops existing: ``cc_show`` is a definition, and
+    a definition with nothing to instantiate is not a show.
+
+    ``single_instance`` is the calendar's two menu entries: "delete this instance"
+    and "delete this instance and all following".
+    """
+    when = now or timezone.now()
+
+    with transaction.atomic():
+        instance = ShowInstance.objects.filter(pk=instance_id).first()
+
+        if instance is None:
+            raise ShowInstanceNotFound(instance_id)
+
+        show_id = instance.show_id
+
+        if not single_instance:
+            _delete_show_images(show_id)
+
+        if single_instance:
+            victims = [instance]
+        else:
+            victims = list(
+                ShowInstance.objects.filter(
+                    show_id=show_id, starts_at__gte=to_instant(instance.starts_at)
+                ).order_by("id")
+            )
+
+        if when > to_instant(instance.ends_at):
+            raise ShowInstanceInThePast(instance_id)
+
+        _delete_instances(victims, show_id)
+
+        _unmark_files_no_longer_scheduled(when)
+
+    update_schedule()
+
+    return show_id
+
+
+def _delete_instances(instances: list[ShowInstance], show_id: int) -> None:
+    """
+    Soft-delete the instances, hard-delete what was inside them.
+
+    An instance that was deleted by the calendar is kept, flagged
+    ``modified_instance``, for as long as the show survives: it is the difference
+    between "this show does not air that night" and "this show never existed", and
+    playout's history points at the row. What is removed outright is the content
+    scheduled inside it, and the rebroadcasts of a recording that will now never be
+    made.
+    """
+    recordings = []
+
+    for instance in instances:
+        instance.modified = True
+        instance.save(update_fields=["modified"])
+        Schedule.objects.filter(instance=instance).delete()
+
+        if instance.record_enabled:
+            recordings.append(instance)
+
+    # Second pass, because a rebroadcast of a recording that has just been
+    # cancelled is often itself among the instances being cancelled: php deletes
+    # them as it walks the list and does not care that Propel's later update of an
+    # already-deleted row matches nothing. Django does care, and so does the
+    # meaning - those rows are not being cancelled, they are gone.
+    for recording in recordings:
+        ShowInstance.objects.filter(instance=recording).delete()
+
+    if _has_no_live_instances(show_id):
+        _delete_show(show_id)
+    elif len(instances) > 1:
+        _set_last_repeating_show_date(show_id)
+
+
+def _has_no_live_instances(show_id: int) -> bool:
+    """
+    Whether anything the show still puts on the air is left.
+
+    Soft-deleted instances do not count, and neither do rebroadcasts: they are
+    consequences of an instance rather than one of the show's own.
+    """
+    return not ShowInstance.objects.filter(
+        show_id=show_id, modified=False, rebroadcast=0
+    ).exists()
+
+
+def _delete_show(show_id: int) -> None:
+    """
+    Remove the show and everything that only exists because of it.
+
+    This is where the port deliberately does more than php. ``cc_show_days.show_id``
+    and ``cc_show_instances.show_id`` have no foreign key in the shipped schema -
+    only ``cc_show_hosts`` does, with a cascade - so the legacy ``deleteShow``
+    deletes the ``cc_show`` row and leaves the repeat rules and the soft-deleted
+    instances pointing at an id that now belongs to nobody. Upstream's own dataset
+    for this scenario expects them gone, because the test database is built from the
+    installer sql which has the cascades the production schema does not: a bug its
+    test suite is structurally unable to see. The row is deleted here with its
+    children, which is what the expectation says and what a station wants.
+    """
+    ShowHost.objects.filter(show_id=show_id).delete()
+    ShowRebroadcast.objects.filter(show_id=show_id).delete()
+    ShowDays.objects.filter(show_id=show_id).delete()
+    ShowInstance.objects.filter(show_id=show_id).delete()
+    Show.objects.filter(pk=show_id).delete()
+
+
+def _delete_show_images(show_id: int) -> None:
+    """
+    Show artwork is storage this api does not have yet.
+
+    php's ``deleteShow`` removes the images from the upload storage whenever it
+    deletes a whole show, and fails the delete if the files cannot be removed. The
+    api neither writes nor serves show images - ``image_path`` is still written by
+    the legacy screens - so there is nothing here to remove, and pretending
+    otherwise would mean inventing a path convention to delete by.
+    """
+    logger.debug("show %s: image storage is still the legacy application's", show_id)
+
+
+def _set_last_repeating_show_date(show_id: int) -> None:
+    """
+    Tell each repeat rule where the show stopped, so the populator does not put it back.
+
+    Without this, deleting a show's last instances from the calendar is temporary:
+    the periodic populate reads ``next_pop_date`` and ``last_show``, sees no end,
+    and cheerfully creates the instances somebody just removed. The date is the
+    last remaining instance's start plus a day, in the rule's own timezone - the
+    same arithmetic the create path used to decide the show had not ended.
+    """
+    live = list(
+        ShowInstance.objects.filter(
+            show_id=show_id, modified=False, rebroadcast=0
+        ).order_by("starts_at")
+    )
+
+    if not live:
+        return
+
+    rules = list(ShowDays.objects.filter(show_id=show_id).order_by("id"))
+    timezone_name = _rule_timezone(rules)
+
+    last_by_week_day: dict[int, datetime] = {}
+
+    for instance in live:
+        local = to_instant(instance.starts_at).astimezone(ZoneInfo(timezone_name))
+        # php's date("w"): 0 is Sunday.
+        last_by_week_day[(local.weekday() + 1) % 7] = local
+
+    for week_day, last_start in last_by_week_day.items():
+        rule = (
+            ShowDays.objects.filter(show_id=show_id, week_day=week_day)
+            .exclude(repeat_kind=NO_REPEAT)
+            .first()
+        )
+
+        if rule is None:
+            continue
+
+        in_rule_zone = last_start.astimezone(ZoneInfo(rule.timezone))
+        # A date, and the day after the last airing: last_show is exclusive.
+        rule.last_show_on = (in_rule_zone + timedelta(days=1)).date()
+        rule.save(update_fields=["last_show_on"])
+
+    # A rule whose instances have all gone keeps its first date, and the day the
+    # delete left nothing for is closed by ending it where it began.
+    for rule in ShowDays.objects.filter(show_id=show_id).exclude(repeat_kind=NO_REPEAT):
+        if rule.last_show_on is None:
+            rule.last_show_on = rule.first_show_on
+            rule.save(update_fields=["last_show_on"])
+
+
+def _rule_timezone(rules: list[ShowDays]) -> str:
+    """
+    The zone to read instance times in: a repeating rule's, else the first.
+
+    php asks in that order too. Every rule of a show carries the same zone in
+    practice, since they are all written from one form field, so the order only
+    decides what happens to a show whose rules disagree.
+    """
+    for rule in rules:
+        if rule.repeat_kind != NO_REPEAT:
+            return rule.timezone
+
+    return rules[0].timezone if rules else "UTC"
+
+
+def _unmark_files_no_longer_scheduled(now: datetime) -> None:
+    """
+    Files whose only scheduling has gone back to being free.
+
+    ``cc_files.is_scheduled`` is what stops the library offering to move or delete
+    something that is queued to air, so a delete that leaves it set would keep files
+    locked that nothing will ever play again. Only files with nothing left in the
+    future are cleared, which is why this is a set difference rather than a blanket
+    update: a file in another show tomorrow is still scheduled.
+    """
+    # Imported here: storage is a different app, and this is the one place the show
+    # editor reaches into it.
+    from ...storage.models import File  # noqa: PLC0415
+
+    still_scheduled = set(
+        Schedule.objects.filter(ends_at__gt=now)
+        .exclude(file=None)
+        .values_list("file_id", flat=True)
+    )
+
+    stale = File.objects.filter(scheduled=True).exclude(pk__in=still_scheduled)
+
+    stale.update(scheduled=False)

@@ -17,22 +17,28 @@ needs to state.
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from model_bakery import baker
 
 from libretime_api.core.models import Preference, Role, User
 from libretime_api.schedule.models import (
     Playlist,
+    Schedule,
     Show,
     ShowDays,
     ShowHost,
     ShowInstance,
     ShowRebroadcast,
 )
+from libretime_api.schedule.services.populate import to_instant
 from libretime_api.schedule.services.show import (
     ShowForm,
     ShowFormError,
+    ShowInstanceInThePast,
+    ShowInstanceNotFound,
     format_duration,
     save_show,
 )
+from libretime_api.storage.models import File
 
 # The instant the harness fixtures are written around: instances are built to the
 # populated-until date, and rebroadcasts only when they are still in the future.
@@ -446,3 +452,319 @@ def test_a_show_day_duration_round_trips_as_the_column_holds_it(db):
     assert ShowInstance.objects.filter(show=show).first().ends_at == (
         ShowInstance.objects.filter(show=show).first().starts_at + timedelta(minutes=90)
     )
+
+
+# -- deleting -------------------------------------------------------------------
+
+
+def delete(instance_id, **kwargs):
+    from libretime_api.schedule.services.show import delete_show_instance
+
+    return delete_show_instance(instance_id, now=NOW, **kwargs)
+
+
+def by_start(show, when):
+    """The instance of ``show`` that begins at ``when``, since ids are not stable."""
+    return ShowInstance.objects.filter(
+        show=show, starts_at=datetime.strptime(when, "%Y-%m-%d").replace(tzinfo=UTC)
+    ).get()
+
+
+def create_three_days():
+    """The harness's delete fixture: Fridays, Mondays and Tuesdays."""
+    return create(add_show_day_check=[5, 1, 2])
+
+
+@pytest.mark.django_db()
+def test_deleting_one_instance_flags_it_and_touches_nothing_else():
+    """
+    php's own rows for this scenario: one instance modified, five not, the show and
+    its rule unchanged.
+
+    The row stays because playout's history refers to it, and because "this show
+    does not air that night" is a fact about the calendar worth keeping. It is
+    flagged rather than removed so the populator can be told to leave it alone.
+    """
+    show = create()
+    victim = by_start(show, "2044-01-15")
+
+    delete(victim.pk, single_instance=True)
+
+    assert [
+        (row.starts_at.strftime("%Y-%m-%d"), row.modified)
+        for row in ShowInstance.objects.filter(show=show).order_by("id")
+    ] == [
+        ("2044-01-01", False),
+        ("2044-01-08", False),
+        ("2044-01-15", True),
+        ("2044-01-22", False),
+        ("2044-01-29", False),
+        ("2044-02-05", False),
+    ]
+    assert Show.objects.filter(pk=show.pk).exists()
+    rule = ShowDays.objects.get(show=show)
+    assert rule.last_show_on is None
+    assert rule.repeat_next_on.strftime("%Y-%m-%d") == "2044-02-12"
+
+
+@pytest.mark.django_db()
+def test_deleting_a_show_takes_its_rules_with_it():
+    """
+    Nothing is left pointing at a show that has stopped existing.
+
+    php leaves the repeat rules and the soft-deleted instances behind here, because
+    the shipped schema has no foreign key on either table's show_id - the row the
+    cascade would have gone through is gone, and the children stay. This is the one
+    place the port and the legacy service disagree on purpose, and it is the side
+    that matches upstream's own dataset for the scenario.
+    """
+    show = create()
+
+    delete(by_start(show, "2044-01-01").pk)
+
+    assert not Show.objects.filter(pk=show.pk).exists()
+    assert not ShowDays.objects.filter(show=show).exists()
+    assert not ShowInstance.objects.filter(show=show).exists()
+
+
+@pytest.mark.django_db()
+def test_deleting_an_instance_and_all_following_ends_each_repeat_day_where_it_stops():
+    """
+    The calendar's other menu entry, on a show with three repeat days.
+
+    The rows below are php's, including the ``last_show`` dates: each rule ends the
+    day after the last instance that survived on that weekday, which is what stops
+    the periodic populator - which reads ``last_show`` - from putting back what was
+    just deleted.
+    """
+    show = create_three_days()
+
+    # The harness's sequence, which is the calendar's for this scenario: three
+    # single instances, then one that takes everything after it.
+    delete(by_start(show, "2044-01-01").pk, single_instance=True)
+    delete(by_start(show, "2044-02-05").pk, single_instance=True)
+    delete(by_start(show, "2044-01-11").pk, single_instance=True)
+    delete(by_start(show, "2044-01-22").pk)
+
+    assert [
+        (
+            row.starts_at.strftime("%Y-%m-%d"),
+            row.modified,
+        )
+        for row in ShowInstance.objects.filter(show=show).order_by("id")
+    ] == [
+        ("2044-01-01", True),
+        ("2044-01-08", False),
+        ("2044-01-15", False),
+        ("2044-01-22", True),
+        ("2044-01-29", True),
+        ("2044-02-05", True),
+        ("2044-01-04", False),
+        ("2044-01-11", True),
+        ("2044-01-18", False),
+        ("2044-01-25", True),
+        ("2044-02-01", True),
+        ("2044-01-05", False),
+        ("2044-01-12", False),
+        ("2044-01-19", False),
+        ("2044-01-26", True),
+        ("2044-02-02", True),
+    ]
+
+    assert {
+        rule.week_day: rule.last_show_on.strftime("%Y-%m-%d")
+        for rule in ShowDays.objects.filter(show=show)
+    } == {5: "2044-01-16", 1: "2044-01-19", 2: "2044-01-20"}
+
+
+@pytest.mark.django_db()
+def test_a_repeat_day_left_with_nothing_in_the_future_is_closed():
+    """
+    A rule whose instances have all gone gets ``last_show`` set to its own start.
+
+    Without that, the populator sees an open-ended rule with no instances, which is
+    indistinguishable from a show that has not started yet, and creates them. php
+    has a comment saying exactly this, and this is the case where the comment is
+    load-bearing.
+    """
+    show = create(add_show_day_check=[5, 1])
+
+    fridays = sorted(
+        instance.pk
+        for instance in ShowInstance.objects.filter(show=show)
+        # Django numbers Sunday 1; php, and the rule's day column, number it 0.
+        if to_instant(instance.starts_at).weekday() == 4
+    )
+
+    for pk in fridays:
+        delete(pk, single_instance=True)
+
+    # One more delete, of the kind that takes everything after it, so that the
+    # bookkeeping runs: a single instance is cancelled silently, and a rule left
+    # with nothing in the future is only closed by the pass that looks.
+    delete(by_start(show, "2044-02-01").pk)
+
+    rule = ShowDays.objects.get(show=show, week_day=5)
+
+    assert rule.last_show_on == rule.first_show_on
+    # The day that still has instances gets the date it stops on instead.
+    assert (
+        ShowDays.objects.get(show=show, week_day=1).last_show_on.strftime("%Y-%m-%d")
+        == "2044-01-26"
+    )
+
+
+@pytest.mark.django_db()
+def test_cancelling_a_recording_removes_the_airings_queued_behind_it():
+    """
+    A recorded weekly show: each airing gets its own recording and its own replays.
+
+    The recording is the instance itself, so it is cancelled the way an instance is
+    cancelled - kept and flagged, because playout's history points at it. Its ten
+    replays are not instances of anything that still exists, and they are deleted.
+
+    A show that runs once cannot show any of this: cancelling its only recording
+    leaves it with nothing live, which is the case where the show stops existing and
+    takes everything with it.
+    """
+    show = create(
+        add_show_record=1,
+        add_show_rebroadcast=1,
+        **{f"add_show_rebroadcast_date_{index}": index for index in range(1, 11)}
+        | {f"add_show_rebroadcast_time_{index}": "00:00" for index in range(1, 11)},
+    )
+
+    # Any one of the six airings; they each carry their own ten replays.
+    original = (
+        ShowInstance.objects.filter(show=show, rebroadcast=0)
+        .order_by("starts_at")
+        .first()
+    )
+
+    assert ShowInstance.objects.filter(instance=original).count() == 10
+
+    delete(original.pk, single_instance=True)
+
+    assert not ShowInstance.objects.filter(instance=original).exists()
+    assert ShowInstance.objects.get(pk=original.pk).modified is True
+
+    # The other five airings, and the fifty replays behind them, are untouched.
+    live = ShowInstance.objects.filter(show=show, modified=False)
+
+    assert live.filter(rebroadcast=0).count() == 5
+    assert live.filter(rebroadcast=1).count() == 50
+
+
+@pytest.mark.django_db()
+def test_the_content_scheduled_inside_a_cancelled_instance_is_removed(db, monkeypatch):
+    """
+    What was queued to play in those hours goes, because the hours are gone.
+
+    The instance itself is kept flagged; its playlist is not, and leaving it would
+    mean playout either playing files from a show nobody asked for, or refusing to
+    start because a queued item's instance is deleted.
+    """
+    file = baker.make("storage.File", scheduled=True)
+    show = create()
+    victim = by_start(show, "2044-01-15")
+    baker.make(
+        "schedule.Schedule",
+        instance=victim,
+        file=file,
+        starts_at=to_instant(victim.starts_at),
+        ends_at=to_instant(victim.ends_at),
+    )
+
+    delete(victim.pk, single_instance=True)
+
+    assert not Schedule.objects.filter(instance=victim).exists()
+
+
+@pytest.mark.django_db()
+def test_a_file_nothing_will_play_again_stops_being_locked(db):
+    """
+    ``cc_files.is_scheduled`` is what stops the library offering to move a file.
+
+    Only files with nothing left in the future are cleared: a file that also airs in
+    another show tomorrow is still scheduled, and unlocking it because a different
+    show was cancelled would let somebody delete the recording they are about to air.
+    """
+    soon = baker.make("storage.File", scheduled=True)
+    still = baker.make("storage.File", scheduled=True)
+    unrelated = baker.make("storage.File", scheduled=True)
+
+    show = create()
+    cancelled = by_start(show, "2044-01-15")
+    keeper = by_start(show, "2044-02-05")
+
+    baker.make(
+        "schedule.Schedule",
+        instance=cancelled,
+        file=soon,
+        starts_at=to_instant(cancelled.starts_at),
+        ends_at=to_instant(cancelled.ends_at),
+    )
+    baker.make(
+        "schedule.Schedule",
+        instance=keeper,
+        file=still,
+        starts_at=to_instant(keeper.starts_at),
+        ends_at=to_instant(keeper.ends_at),
+    )
+    baker.make(
+        "schedule.Schedule",
+        instance=cancelled,
+        file=still,
+        starts_at=to_instant(cancelled.starts_at),
+        ends_at=to_instant(cancelled.ends_at),
+    )
+
+    delete(cancelled.pk, single_instance=True)
+
+    assert File.objects.get(pk=soon.pk).scheduled is False
+    assert File.objects.get(pk=still.pk).scheduled is True
+    # A file flagged as scheduled with nothing scheduling it is stale by the same
+    # rule, and php clears those too: the flag is a lock, and a lock nobody holds
+    # has to be releasable.
+    assert File.objects.get(pk=unrelated.pk).scheduled is False
+
+
+@pytest.mark.django_db()
+def test_a_show_that_already_aired_cannot_be_cancelled():
+    """php refuses, and the reason is playout's history, not tidiness."""
+    Preference.objects.filter(key="shows_populated_until").update(value="2024-01-08")
+    show = save_show(
+        ShowForm.from_legacy_payload(form(add_show_start_date="2024-01-01")), now=NOW
+    )[0]
+    aired = ShowInstance.objects.filter(show=show).first()
+
+    with pytest.raises(ShowInstanceInThePast):
+        delete(aired.pk, single_instance=True)
+
+    assert ShowInstance.objects.get(pk=aired.pk).modified is False
+
+
+@pytest.mark.django_db()
+def test_an_instance_that_does_not_exist_says_so():
+    with pytest.raises(ShowInstanceNotFound):
+        delete(4242)
+
+
+@pytest.mark.django_db()
+def test_playout_is_told_about_a_cancellation(db, monkeypatch):
+    notified = []
+    monkeypatch.setattr(
+        "libretime_api.schedule.services.show.update_schedule",
+        lambda: notified.append(True),
+    )
+    create()
+    # The create above announced itself too; this test is about the cancellation.
+    notified.clear()
+
+    show = Show.objects.get()
+    delete(
+        by_start(show, "2044-01-15").pk,
+        single_instance=True,
+    )
+
+    assert notified == [True]

@@ -15,11 +15,15 @@ django.setup()
 
 from django.db import connection  # noqa: E402
 
-from libretime_api.schedule.services.show import ShowForm, save_show  # noqa: E402
+from libretime_api.schedule.services.show import (  # noqa: E402
+    ShowForm,
+    delete_show_instance,
+    save_show,
+)
 
 # Steps the port does not implement yet. They are named rather than silently
 # skipped, so a run says what it did not cover.
-NOT_YET = {"deleteShow", "editRepeatingShowInstance"}
+NOT_YET = {"editRepeatingShowInstance", "delegateInstanceCreation"}
 
 TABLES = [
     ("cc_show", "select * from cc_show order by id"),
@@ -81,6 +85,12 @@ def main() -> int:
             if step[0] == "addUpdateShow":
                 save_show(ShowForm.from_legacy_payload(payload), is_update=is_update)
                 is_update = True
+            elif step[0] == "deleteShow":
+                # The calendar's two menu entries, exactly as php gets them: the
+                # instance to remove, and whether it is only that one.
+                delete_show_instance(
+                    step[1], single_instance=len(step) > 2 and bool(step[2])
+                )
 
         blocks.append("\n".join([f"### {scenario['name']}", *dump()]))
 
