@@ -70,18 +70,18 @@ if [ "$ab_mode" = "local" ]; then
     [ -f "$legacy_root/vendor/autoload.php" ] || {
         echo "legacy dependencies not installed: run make -C legacy vendor" >&2
         exit 1
-    }
+  }
 
     psql() {
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" \
             -p "$EQ_DB_PORT" -U "$EQ_DB_USER" -d "$EQ_DB_NAME" \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     # Nothing to build and nothing to drop: the driver created the database before
     # calling this and removes it afterwards, which is also how a CI runner gets a
     # schema without having a station to copy one from.
-    prepare_database() { psql -f "$here/clean.sql" >/dev/null; }
+    prepare_database() { psql -f "$here/clean.sql" > /dev/null; }
     drop_database() { printf '  left to tools/equivalence-run.sh (%s)\n' "$EQ_DB_NAME"; }
 
     # No md5 guard, and that is not an omission: container mode mounts this checkout
@@ -93,20 +93,20 @@ if [ "$ab_mode" = "local" ]; then
             LEGACY_TESTS_DIR="$tests_dir" \
             AB_FIXTURES="$here" \
             LIBRETIME_LOG_DIR="$EQ_OUT/logs" \
-            "$php" "$here/run-php.php" >"$out/php"
-    }
+            "$php" "$here/run-php.php" > "$out/php"
+  }
 
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             AB_FIXTURES="$here" \
             sh -c 'cd "$1" && timeout 240 "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py" \
-            >"$out/python"
-    }
+      > "$out/python"
+  }
 else
     psql() {
         timeout 120 docker exec -i "$db_container" psql -U libretime -d libretime \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     prepare_database() {
         step "harness database ($harness_db)"
@@ -114,23 +114,23 @@ else
         # already has it fails on every constraint, and a run that prints errors and then
         # carries on is a run nobody trusts.
         timeout 60 docker exec "$db_container" psql -U libretime -d postgres -q \
-            -c "DROP DATABASE IF EXISTS $harness_db" >/dev/null
+            -c "DROP DATABASE IF EXISTS $harness_db" > /dev/null
         timeout 60 docker exec "$db_container" createdb -U libretime "$harness_db"
 
         # Schema only: an empty station, so instance ids start at 1 the way the legacy
         # tests assume, and none of the real station's preferences are in reach.
         timeout 180 docker exec "$db_container" sh -c \
             "pg_dump -U libretime -d $live_db --schema-only | psql -U libretime -d $harness_db -q" \
-            >/dev/null
+      > /dev/null
         psql_harness -f $here/clean.sql
 
         # Both services read the same config file format, so both get one pointing at
         # the harness database. The station's own config does not name a database at
         # all - the default is what it uses - so the name has to be written in, not
         # substituted.
-        timeout 60 docker exec "$php_container" cat /etc/libretime/config.yml >"$out/config.base.yml"
+        timeout 60 docker exec "$php_container" cat /etc/libretime/config.yml > "$out/config.base.yml"
 
-        python3 - "$out" "$harness_db" <<'PY'
+        python3 - "$out" "$harness_db" << 'PY'
 import pathlib
 import re
 import sys
@@ -149,18 +149,18 @@ pathlib.Path(out, "legacy-config.yml").write_text(base)
 pathlib.Path(out, "api-config.yml").write_text(base)
 print(f"  configs point at {db}")
 PY
-    }
+  }
 
     psql_harness() {
         timeout 120 docker exec -i "$db_container" psql -U libretime -d "$harness_db" \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     drop_database() {
         step "drop the harness database"
         timeout 60 docker exec "$db_container" psql -U libretime -d postgres -q \
-            -c "DROP DATABASE IF EXISTS $harness_db" >/dev/null && echo "  dropped $harness_db"
-    }
+            -c "DROP DATABASE IF EXISTS $harness_db" > /dev/null && echo "  dropped $harness_db"
+  }
 
     run_php() {
         legacy_image="$(docker inspect "$php_container" --format '{{.Image}}')"
@@ -177,21 +177,21 @@ PY
             "md5sum /var/www/html/application/services/ShowService.php | cut -d' ' -f1 \
                | grep -q '$want' || { echo 'mounted application code is not this checkout' >&2; exit 1; } \
              ; php /tools/run-php.php" \
-            >"$out/php"
-    }
+      > "$out/php"
+  }
 
     run_py() {
         for f in run-py.py scenarios.json clean.sql seed.sql; do
-            timeout 60 docker exec -i "$py_container" sh -c "cat > /tools/$f" <"$here/$f"
-        done
-        timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/ab-harness-config.yml' <"$out/api-config.yml"
+            timeout 60 docker exec -i "$py_container" sh -c "cat > /tools/$f" < "$here/$f"
+    done
+        timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/ab-harness-config.yml' < "$out/api-config.yml"
 
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-harness-config.yml \
             "$py_container" sh -c "cd /srv/src/api && timeout 240 .venv/bin/python /tools/run-py.py" \
-            >"$out/python"
-    }
+      > "$out/python"
+  }
 fi
 
 prepare_database
@@ -216,7 +216,7 @@ if [[ "$mode" == "all" || "$mode" == "python" ]]; then
         echo "no python side yet: run-py.py lands with the show editor port." >&2
         echo "Until then use: ./ab.sh php   or   ./ab.sh spec" >&2
         exit 3
-    fi
+  fi
 
     step "python port"
     run_py
@@ -237,7 +237,7 @@ if [[ "$mode" == "all" ]]; then
 
     if [ $status -ne 0 ] || [ $spec_status -ne 0 ]; then
         exit 1
-    fi
+  fi
     exit 0
 fi
 

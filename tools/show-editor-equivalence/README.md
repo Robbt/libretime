@@ -43,21 +43,21 @@ out identical, and the 18 that have upstream datasets match them as well.
 The python port agreeing with php would, on its own, only prove that both do the
 same thing. The datasets under
 `legacy/tests/application/services/database/datasets/` are the project's own
-statement of what the editor is *supposed* to leave behind, so the legacy run is
+statement of what the editor is _supposed_ to leave behind, so the legacy run is
 checked against them first: `./ab.sh spec`. If that leg is not clean, the
 comparison below it is comparing the wrong behaviour.
 
 ## Pieces
 
-| file | role |
-| --- | --- |
+| file                 | role                                                                                                                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dump-scenarios.php` | prints `scenarios.json` from `ShowServiceData`, php's own payload fixtures, plus the per-scenario overrides and call sequence transcribed from the unit test — the part worth reviewing, because it is the only hand-written link to the test file |
-| `scenarios.json` | what that produced; both sides read it, so they cannot disagree about what was covered |
-| `seed.sql` | the fixture state of `seed_show_service.yml`: two preferences |
-| `clean.sql` | empties the database and restarts the sequences |
-| `run-php.php` | runs each scenario through the legacy service and dumps the six tables it writes |
-| `run-py.py` | the same through the python port, including the same seed inserts |
-| `compare.py` | row and column level diffing, in two modes |
+| `scenarios.json`     | what that produced; both sides read it, so they cannot disagree about what was covered                                                                                                                                                             |
+| `seed.sql`           | the fixture state of `seed_show_service.yml`: two preferences                                                                                                                                                                                      |
+| `clean.sql`          | empties the database and restarts the sequences                                                                                                                                                                                                    |
+| `run-php.php`        | runs each scenario through the legacy service and dumps the six tables it writes                                                                                                                                                                   |
+| `run-py.py`          | the same through the python port, including the same seed inserts                                                                                                                                                                                  |
+| `compare.py`         | row and column level diffing, in two modes                                                                                                                                                                                                         |
 
 Rows are dumped as `to_jsonb(...)::text` by both sides rather than as column lists:
 `pdo_pgsql` returns a boolean as `"1"` or `""`, which turns "is the port correct"

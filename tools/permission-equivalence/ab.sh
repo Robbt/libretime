@@ -40,13 +40,13 @@ if [ "$ab_mode" = "local" ]; then
     [ -f "$legacy_root/vendor/autoload.php" ] || {
         echo "legacy dependencies not installed: run make -C legacy vendor" >&2
         exit 1
-    }
+  }
 
     psql() {
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" \
             -p "$EQ_DB_PORT" -U "$EQ_DB_USER" -d "$EQ_DB_NAME" \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     # Both sides read cases.txt out of this directory. Container mode has to copy it to
     # /tools because it copies the script to /tmp as well, which is why run-py.py takes
@@ -55,24 +55,24 @@ if [ "$ab_mode" = "local" ]; then
         mkdir -p "$EQ_OUT/logs"
         timeout 300 env LEGACY_ROOT="$(cd "$legacy_root" && pwd)" \
             LIBRETIME_LOG_DIR="$EQ_OUT/logs" \
-            "$php" "$here/run-php.php" >"$out/php"
+            "$php" "$here/run-php.php" > "$out/php"
 
-        wc -l <"$out/php" | xargs echo "  verdicts:"
-    }
+        wc -l < "$out/php" | xargs echo "  verdicts:"
+  }
 
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             AB_FIXTURES="$here" \
             sh -c 'cd "$1" && timeout 240 "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py" \
-            >"$out/python"
+      > "$out/python"
 
-        wc -l <"$out/python" | xargs echo "  verdicts:"
-    }
+        wc -l < "$out/python" | xargs echo "  verdicts:"
+  }
 else
     psql() {
         timeout 120 docker exec -i "$db_container" psql -U libretime -d libretime \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     run_php() {
         # The legacy code runs from this checkout rather than from whatever the image
@@ -82,7 +82,7 @@ else
         want="$(md5sum "$app_dir/models/User.php" | cut -d' ' -f1)"
 
         timeout 60 docker exec "$php_container" cat /etc/libretime/config.yml \
-            >"$out/legacy-config.yml"
+      > "$out/legacy-config.yml"
 
         timeout 300 docker run --rm --network libretime_default \
             -v "$app_dir:/var/www/html/application:ro" \
@@ -91,27 +91,27 @@ else
             -e LIBRETIME_CONFIG_FILEPATH=/etc/libretime/config.yml \
             "$legacy_image" sh -c \
             "md5sum /var/www/html/application/models/User.php | cut -d' ' -f1 | grep -q '$want' || { echo 'mounted application code does not match this checkout' >&2; exit 1; }; php /tools/run-php.php" \
-            >"$out/php"
+      > "$out/php"
 
-        wc -l <"$out/php" | xargs echo "  verdicts:"
-    }
+        wc -l < "$out/php" | xargs echo "  verdicts:"
+  }
 
     run_py() {
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/run-py-permissions.py' \
-            <"$here/run-py.py"
+      < "$here/run-py.py"
         # The same cases.txt path as on the php side, so the two cannot disagree
         # about what was covered.
         timeout 30 docker exec "$py_container" mkdir -p /tools
-        timeout 60 docker exec -i "$py_container" sh -c 'cat > /tools/cases.txt' <"$here/cases.txt"
+        timeout 60 docker exec -i "$py_container" sh -c 'cat > /tools/cases.txt' < "$here/cases.txt"
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
             -e AB_FIXTURES=/tools \
             "$py_container" sh -c 'cd /srv/src/api && timeout 240 .venv/bin/python /tmp/run-py-permissions.py' \
-            >"$out/python"
+      > "$out/python"
 
-        wc -l <"$out/python" | xargs echo "  verdicts:"
-    }
+        wc -l < "$out/python" | xargs echo "  verdicts:"
+  }
 fi
 
 mkdir -p "$out"

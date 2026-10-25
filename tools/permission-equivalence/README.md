@@ -40,12 +40,12 @@ The composition of those predicates into a decision is written out next to the
 citation of every call site, because that composition is what a reviewer has to
 check:
 
-| rule | objects | legacy code |
-| --- | --- | --- |
-| admin or program manager (`isUserType([S,A,P])`) | show, show days, show instance, show rebroadcast, show host | `ScheduleController.php:219` `:698`, `ScheduleController.php:110` `:142` |
-| that, or the owner of the object | file, playlist, playlist content, smart block, block content, block criteria, podcast, podcast episode | `StoredFile.php:399`, `Playlist.php:986` + `playlistsNotOwnedByUser`, `Block.php:1019` + `blocksNotOwnedByUser`, `LibraryController.php:352` |
-| that, or a host of the show the row belongs to | schedule row (content placed in a show instance) | `User.php:59` `canSchedule`, `Scheduler.php:146`, `CcSubjs::isHostOfShowInstance` |
-| admin or program manager **without** superadmin, or the owner | webstream | `Webstream.php:97` |
+| rule                                                          | objects                                                                                                | legacy code                                                                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| admin or program manager (`isUserType([S,A,P])`)              | show, show days, show instance, show rebroadcast, show host                                            | `ScheduleController.php:219` `:698`, `ScheduleController.php:110` `:142`                                                                     |
+| that, or the owner of the object                              | file, playlist, playlist content, smart block, block content, block criteria, podcast, podcast episode | `StoredFile.php:399`, `Playlist.php:986` + `playlistsNotOwnedByUser`, `Block.php:1019` + `blocksNotOwnedByUser`, `LibraryController.php:352` |
+| that, or a host of the show the row belongs to                | schedule row (content placed in a show instance)                                                       | `User.php:59` `canSchedule`, `Scheduler.php:146`, `CcSubjs::isHostOfShowInstance`                                                            |
+| admin or program manager **without** superadmin, or the owner | webstream                                                                                              | `Webstream.php:97`                                                                                                                           |
 
 The api side (`run-py.py`) asks `IsSystemTokenOrUser.has_permission` and
 `has_object_permission` with the real viewsets, the real `GROUPS` role lists and
@@ -71,6 +71,6 @@ agree in shape. Two differences worth knowing, neither touched here:
 - a guest may not open the library, playlist or podcast page (`ACL.php` grants
   those to `H`), but does hold `view_file`, `view_playlist` and `view_podcast`,
   so the api answers a guest's read where the legacy ui would not;
-- `canSchedule` also decides whether the showbuilder *renders* a row as editable
+- `canSchedule` also decides whether the showbuilder _renders_ a row as editable
   (`ShowBuilder.php:102`), which is a user interface question rather than a
   permission one.
