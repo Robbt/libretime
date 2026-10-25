@@ -92,14 +92,25 @@ class PhpSessionAuthentication(BaseAuthentication):
     """
     Authenticate a request carrying the legacy session cookie.
 
-    Returns ``None``, meaning "not my credentials", whenever the cookie is
-    absent, the session is unknown or expired, or nobody is logged in to it - so
-    that API-key and basic authentication keep working unchanged. A request that
+    Returns ``None``, meaning "not my credentials", whenever the request presents
+    its own credentials in the ``Authorization`` header, the cookie is absent, the
+    session is unknown or expired, or nobody is logged in to it - so that API-key and
+    basic authentication keep working unchanged, including for a caller that happens
+    to be carrying a session cookie as well. A request that
     carries a live session and tries to change something is authenticated only
     when it also presents that session's CSRF token.
     """
 
     def authenticate(self, request: Request) -> tuple[User, Any] | None:
+        # A request that names itself in the Authorization header is not talking to
+        # this class, even when it also carries a session cookie - and it is talking
+        # to it in the credentials it chose, so an unusable key should be answered
+        # with a rejection rather than being quietly rescued by whoever happens to be
+        # logged in to the browser. Cookies are ambient: a browser sends one on every
+        # request to the station, whether or not the code making it knows.
+        if "HTTP_AUTHORIZATION" in request.META:
+            return None
+
         session_id = request.COOKIES.get(COOKIE_NAME)
 
         if not session_id:

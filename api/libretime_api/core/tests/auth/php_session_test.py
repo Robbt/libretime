@@ -9,6 +9,7 @@ bridge has to read rather than what it would like to read.
 import time
 
 import pytest
+from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIClient, APIRequestFactory
 
@@ -346,6 +347,58 @@ def test_a_request_without_a_session_may_still_write_with_other_credentials():
     result = PhpSessionAuthentication().authenticate(_drf_request("post", None))
 
     assert result is None
+
+
+def test_a_request_that_names_itself_is_not_read_as_a_session(user):
+    """
+    Both credentials in one request: the cookie authenticator steps aside.
+
+    The header is the caller saying who it is; the cookie is a browser doing what
+    browsers do to every request on the domain. A request that presents its own
+    credentials is authenticated by those, and by nothing else - including when
+    they are wrong, which is the case this also covers. A key that does not work
+    should be answered with a rejection, not quietly rescued by whoever happens to
+    be logged in to the same browser.
+    """
+    make_session(session_id="sid0000000000000000000000000013")
+
+    assert (
+        PhpSessionAuthentication().authenticate(
+            _drf_request(
+                "get",
+                "sid0000000000000000000000000013",
+                HTTP_AUTHORIZATION="Api-Key not-the-stations-key",
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db()
+def test_a_cookie_and_a_key_together_are_answered_as_the_key(user):
+    """
+    The observable difference between the two identities is the CSRF token: a
+    session has to present one to write, a station key never does. So a write
+    carrying both, with no token, succeeds only if the key was the one believed.
+
+    The session here belongs to an admin, who could write this with a token -
+    the point is that it succeeds without one.
+    """
+    make_session(session_id="sid0000000000000000000000000014")
+
+    client = APIClient()
+    client.cookies[COOKIE_NAME] = "sid0000000000000000000000000014"
+    client.credentials(
+        HTTP_AUTHORIZATION=f"Api-Key {settings.CONFIG.general.api_key}",
+    )
+
+    response = client.post(
+        "/api/v2/preferences",
+        {"key": "general.pref_written_by_key", "value": "1"},
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
 
 
 # ---------------------------------------------------------------------------
