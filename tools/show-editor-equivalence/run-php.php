@@ -18,9 +18,53 @@ $legacyRoot = getenv('LEGACY_ROOT') ?: '/var/www/html';
 require_once $legacyRoot . '/application/preload.php';
 require_once $legacyRoot . '/application/check.php';
 require_once $legacyRoot . '/application/configs/constants.php';
+require_once '/var/www/tests/application/testdata/ShowServiceData.php';
 configureDatabase();
 
 $scenarios = json_decode(file_get_contents('/tools/scenarios.json'), true);
+
+/**
+ * Put one item inside a show instance, the way the library's drag-and-drop does.
+ *
+ * The upstream test drives Application_Model_Scheduler::scheduleAfter() for this,
+ * which for a linked show copies the content into every instance - a behaviour of
+ * the scheduler, not of the show editor, and the scheduler port lives on another
+ * branch. Both legs of this harness therefore seed with the same two inserts: the
+ * scenario is about what an edit does to a queued item, and that needs an item, not
+ * a scheduler. The rows carry the same values scheduleAfter leaves - a clip of the
+ * file's length at the instance's start, marked as inside the show.
+ */
+function seedScheduledItem(PDO $pdo, int $instanceId): void
+{
+    $pdo->exec(
+        "INSERT INTO cc_files (id, track_title, mime, length, cuein, cueout)
+         VALUES (1, 'seeded item', 'audio/mpeg', '00:04:32', '00:00:00', '00:04:32')"
+    );
+    $pdo->exec("SELECT setval(pg_get_serial_sequence('cc_files', 'id'), 2, false)");
+
+    // Every instance of the same show gets the item: that is what a linked show
+    // means, and the dataset upstream asserts exactly this.
+    $pdo->exec(
+        "INSERT INTO cc_schedule (starts, ends, instance_id, file_id, clip_length, fade_in, fade_out,
+                                  cue_in, cue_out, position, playout_status, broadcasted)
+         SELECT i.starts,
+                i.starts + INTERVAL '00:04:32',
+                i.id,
+                1,
+                '00:04:32',
+                '00:00:00.5',
+                '00:00:00.5',
+                '00:00:00',
+                '00:04:32',
+                0,
+                1,
+                0
+         FROM cc_show_instances i
+         WHERE i.show_id = (SELECT show_id FROM cc_show_instances WHERE id = {$instanceId})
+           AND i.rebroadcast = 0
+         ORDER BY i.id"
+    );
+}
 
 /**
  * The identity Application_Service_ShowService asks for.
@@ -100,7 +144,13 @@ foreach ($scenarios as $scenario) {
     $showId = null;
 
     foreach ($scenario['steps'] as $step) {
-        $call = $step[0];
+        $call = $step['call'];
+
+        // An edit posts the same payload back with the fields the user changed,
+        // which is what "set" says: mutate the running payload, then send it.
+        foreach ($step['set'] ?? [] as $key => $value) {
+            $payload[$key] = $value;
+        }
 
         if ($call === 'addUpdateShow') {
             // A fresh service per call, as the legacy tests construct one per
@@ -114,9 +164,22 @@ foreach ($scenarios as $scenario) {
 
             $showId = $service->addUpdateShow($payload);
         } elseif ($call === 'deleteShow') {
-            $service->deleteShow($step[1], $step[2] ?? false);
+            $service->deleteShow(...$step['args']);
         } elseif ($call === 'editRepeatingShowInstance') {
-            $service->editRepeatingShowInstance($step[1]);
+            // The upstream test builds a second service from the instance payload
+            // before calling, so this does the same rather than reusing $service.
+            $editData = $step['data'];
+
+            $service = new Application_Service_ShowService(null, $editData);
+            $service->editRepeatingShowInstance($editData);
+        } elseif ($call === 'delegateInstanceCreation') {
+            $service->delegateInstanceCreation(
+                null,
+                new DateTime($step['end'], new DateTimeZone('UTC')),
+                (bool) ($step['fill'] ?? false)
+            );
+        } elseif ($call === 'seedSchedule') {
+            seedScheduledItem($pdo, (int) $step['instance']);
         }
     }
 
@@ -133,6 +196,11 @@ foreach ($scenarios as $scenario) {
         ],
         ['cc_show_rebroadcast', 'select * from cc_show_rebroadcast order by id'],
         ['cc_show_hosts', 'select * from cc_show_hosts order by id'],
+        [
+            'cc_schedule',
+            'select id, starts, ends, file_id, clip_length, fade_in, fade_out, cue_in, '
+                . 'cue_out, instance_id, playout_status from cc_schedule order by id',
+        ],
     ] as [$table, $projection]) {
         $lines = array_merge($lines, dumpTable($pdo, $table, $projection, $table));
     }

@@ -31,16 +31,23 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
+from ...core.models import Preference
 from ...notify.playout import update_schedule
 from ..models import Schedule, Show, ShowDays, ShowHost, ShowInstance, ShowRebroadcast
-from .populate import NO_REPEAT, InstanceBuilder, PreferenceStore, to_instant
+from .populate import (
+    NO_REPEAT,
+    InstanceBuilder,
+    PreferenceStore,
+    fill_linked_instances,
+    to_instant,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +92,11 @@ class ShowForm:
     description: str | None
     url: str | None
     genre: str | None
-    color: str
-    background_color: str
+    #: The show's colours. Required by everything that writes the show row, and
+    #: absent for the "edit this instance" payload, which describes one night rather
+    #: than the show and never touches them.
+    color: str | None
+    background_color: str | None
 
     live_registered: bool
     live_custom: bool
@@ -125,13 +135,22 @@ class ShowForm:
     rebroadcasts: tuple[Rebroadcast, ...]
 
     hosts: tuple[int, ...] = ()
+    #: The note the "edit this instance" dialog writes onto the instance it splits out
+    #: of a repeating show. Not the show's description.
+    instance_description: str | None = None
 
     # -- parsing --------------------------------------------------------------
 
     @classmethod
-    def from_legacy_payload(cls, data: Mapping[str, Any]) -> "ShowForm":
+    def from_legacy_payload(
+        cls, data: Mapping[str, Any], *, with_colors: bool = True
+    ) -> "ShowForm":
         """
         Read the payload the show dialog posts.
+
+        ``with_colors`` is off only for the "edit this instance" dialog, which
+        carries no colours because it does not touch the show row - and which would
+        otherwise be refused for a field it never intended to send.
 
         This is the one reading of a show payload: the dialog posts it, the api
         rebuilds it from whatever vocabulary the client used, and the equivalence
@@ -147,13 +166,22 @@ class ShowForm:
         return cls(
             show_id=_id(data.get("add_show_id")),
             instance_id=_id(data.get("add_show_instance_id")),
+            instance_description=_text(data.get("add_show_instance_description")),
             name=_required_text(data.get("add_show_name"), "add_show_name"),
             description=_text(data.get("add_show_description")),
             url=_text(data.get("add_show_url")),
             genre=_text(data.get("add_show_genre")),
-            color=_required_text(data.get("add_show_color"), "add_show_color"),
-            background_color=_required_text(
-                data.get("add_show_background_color"), "add_show_background_color"
+            color=(
+                _required_text(data.get("add_show_color"), "add_show_color")
+                if with_colors
+                else _text(data.get("add_show_color"))
+            ),
+            background_color=(
+                _required_text(
+                    data.get("add_show_background_color"), "add_show_background_color"
+                )
+                if with_colors
+                else _text(data.get("add_show_background_color"))
             ),
             live_registered=_flag(data.get("cb_airtime_auth")),
             live_custom=_flag(data.get("cb_custom_auth")),
@@ -193,8 +221,11 @@ def save_show(form: ShowForm, *, is_update: bool = False, now: datetime | None =
 
     Args:
         form: The parsed payload.
-        is_update: Whether the show already exists. The reconciliation of existing
-            instances only happens on an update, like the legacy service.
+        is_update: Whether the show already exists. An edit reconciles what is
+            already on the calendar with the rules the payload describes: it adopts
+            the instances that still belong, removes the ones the new rules no
+            longer produce, and moves the content scheduled inside the survivors.
+            The whole of that only happens on an update, like the legacy service.
         now: Instant of the request, for the "do not schedule into the past"
             checks. Injectable so the tests and the harness are not at the mercy of
             the clock.
@@ -206,23 +237,30 @@ def save_show(form: ShowForm, *, is_update: bool = False, now: datetime | None =
 
     with transaction.atomic():
         show = _save_show(form, is_update)
+        original = _read_original(show) if is_update else None
+        scheduled: list[int] = []
 
-        # On an update the legacy service removes the instances the new rules no
-        # longer cover before writing the new rules, because the cleanup reads the
-        # original show day to know what changed. That is the next piece of the
-        # port; until it exists, an update here would silently leave stale
-        # instances behind, which is worse than refusing.
-        if is_update:
-            raise NotImplementedError(
-                "editing an existing show is not ported yet; see "
-                "tools/show-editor-equivalence for what php leaves behind"
-            )
+        if original is not None:
+            # Before the new rules are written, because the cleanup compares the
+            # payload against what is in the database now.
+            _cleanup_instances(form, show, original, now)
+            _delete_future_rebroadcast_instances(show, now)
+            _delete_hosts(show)
 
-        _save_show_days(form, show)
+            if form.rebroadcast:
+                _delete_rebroadcast_rules(show)
+
+            # Which instances hold scheduled content that is about to have to move.
+            scheduled = list(_future_instance_ids(show, now))
+
+        _save_show_days(form, show, original)
         _save_rebroadcasts(form, show)
         _save_hosts(form, show)
 
-        created = _create_instances(show, now=now)
+        created = _create_instances(show, now=now, original=original)
+
+        if original is not None:
+            _adjust_schedule(form, show, original, scheduled, now)
 
     # Outside the transaction: a rolled back save must not tell playout to reload.
     update_schedule()
@@ -256,8 +294,9 @@ def _save_show(form: ShowForm, is_update: bool) -> Show:
     show.description = form.description
     show.url = form.url
     show.genre = form.genre
-    show.foreground_color = form.color
-    show.background_color = form.background_color
+    if form.color is not None:
+        show.foreground_color = form.color
+        show.background_color = form.background_color
     show.live_auth_registered = form.live_registered
     show.live_auth_custom = form.live_custom
     show.live_auth_custom_user = form.live_user
@@ -295,7 +334,9 @@ def _save_show(form: ShowForm, is_update: bool) -> Show:
     return show
 
 
-def _save_show_days(form: ShowForm, show: Show) -> None:
+def _save_show_days(
+    form: ShowForm, show: Show, original: _Original | None = None
+) -> None:
     """
     The ``cc_show_days`` rows: one per repeating day, or one for a single show.
 
@@ -325,6 +366,7 @@ def _save_show_days(form: ShowForm, show: Show) -> None:
             week_day=None,
             form=form,
             end=end,
+            original=original,
         )
 
         return
@@ -343,10 +385,85 @@ def _save_show_days(form: ShowForm, show: Show) -> None:
             week_day=day,
             form=form,
             end=end,
+            original=original,
         )
 
 
+def _existing_rule(
+    show: Show, original: _Original, week_day: int | None
+) -> ShowDays | None:
+    """
+    The rule this edit is rewriting, if there is one.
+
+    An edit does not add a rule per weekday and leave the old ones: it finds the row
+    that describes the same night and overwrites it, so the show keeps one row per
+    night it airs and the ids stay where the instances' history points.
+
+    The search uses the repeat kind the show *had*, not the one the payload
+    describes: changing a weekly show to biweekly is the same row with a different
+    interval, and changing a monthly show drops the weekday from the search, since a
+    monthly rule has none - it takes its weekday from its first show date. A null
+    weekday is matched as null, which is what a monthly rule stores.
+    """
+    lookup = week_day
+
+    if original.repeat_kind in (2, 3):
+        lookup = None
+    elif original.repeat_kind == NO_REPEAT:
+        # A show that used to run once is being made to repeat: the row to rewrite
+        # is the one the single instance came from, whichever weekday that fell on.
+        lookup = original.week_day
+
+    rules = ShowDays.objects.filter(show=show, repeat_kind=original.repeat_kind)
+
+    if lookup is None:
+        rules = rules.filter(week_day__isnull=True)
+    else:
+        rules = rules.filter(week_day=lookup)
+
+    return rules.order_by("id").first()
+
+
 def _store_day(
+    show: Show,
+    *,
+    first_show: date,
+    week_day: int | None,
+    form: ShowForm,
+    end: datetime | None,
+    original: _Original | None = None,
+) -> ShowDays:
+    """
+    Write one repeat rule, over the previous one if this is an edit.
+
+    A new rule for a night that already had one would leave the show with two
+    descriptions of the same airing, and the instance builder would obey both.
+    """
+    rule = _existing_rule(show, original, week_day) if original else None
+
+    if rule is None:
+        rule = ShowDays()
+
+    rule.show = show
+    rule.first_show_on = first_show
+    rule.last_show_on = end.date() if end else None
+    rule.start_time = form.start_time
+    rule.timezone = form.timezone_name
+    rule.duration = form.duration
+    rule.week_day = week_day
+    rule.repeat_kind = form.repeat_kind
+    rule.record_enabled = 1 if form.record else 0
+    # Where instance generation resumes. Reset to the first show on every save, so
+    # editing a show rebuilds its calendar from the beginning - which is what the
+    # instance reuse then walks over: the nights that already exist are found and
+    # kept, not created again beside themselves.
+    rule.repeat_next_on = first_show
+    rule.save()
+
+    return rule
+
+
+def _create_day_row(
     show: Show,
     *,
     first_show: date,
@@ -391,6 +508,18 @@ def _save_rebroadcasts(form: ShowForm, show: Show) -> None:
         )
 
 
+def _delete_hosts(show: Show) -> None:
+    """
+    Every host of the show, before they are written again.
+
+    php deletes and re-inserts rather than diffing, which is why the ids the
+    ``cc_show_hosts`` rows carry change on an edit that did not touch the hosts at
+    all. Nothing references those rows, so it does not matter - but it is the kind of
+    thing an "obviously equivalent" refactor gets wrong, so the crudeness is kept.
+    """
+    ShowHost.objects.filter(show=show).delete()
+
+
 def _save_hosts(form: ShowForm, show: Show) -> None:
     """The ``cc_show_hosts`` rows. An empty list leaves the show unhosted."""
     for host_id in form.hosts:
@@ -400,7 +529,13 @@ def _save_hosts(form: ShowForm, show: Show) -> None:
 # -- instances -----------------------------------------------------------------
 
 
-def _create_instances(show: Show, *, now: datetime) -> dict[int, list[int]]:
+def _create_instances(
+    show: Show,
+    *,
+    now: datetime,
+    original: _Original | None = None,
+    fill_instances: bool = False,
+) -> dict[int, list[int]]:
     """
     Create the instances the populated window calls for.
 
@@ -411,7 +546,11 @@ def _create_instances(show: Show, *, now: datetime) -> dict[int, list[int]]:
     """
     populate_until = PreferenceStore.shows_populated_until() or to_instant(now)
 
-    builder = InstanceBuilder(now=to_instant(now))
+    builder = InstanceBuilder(
+        now=to_instant(now),
+        adopt=_informer(original, show) if original else None,
+        is_update=original is not None,
+    )
 
     for day in ShowDays.objects.filter(show=show).order_by("id"):
         if day.repeat_kind == NO_REPEAT:
@@ -419,10 +558,19 @@ def _create_instances(show: Show, *, now: datetime) -> dict[int, list[int]]:
         else:
             builder.build([day], populate_until=populate_until)
 
-    if show.linked and show.auto_playlist_enabled:
-        # A linked show copies its content into its new instances. Only on an
-        # update does the legacy service do this for the show just saved; a new
-        # show has no content to copy yet, so nothing happens here today.
+    if (fill_instances or original is not None) and show.linked:
+        # A linked show's instances all air the same content, so the ones that did
+        # not exist a moment ago have to be given it. On a create there is nothing
+        # to copy from - a brand new show has no instance holding anything - which
+        # is why the legacy service runs this only for an edit, or when the calendar
+        # has been moved forward and asked to fill.
+        fill_linked_instances(
+            show,
+            builder.new_instance_ids.get(show.pk, []),
+            populated_until=populate_until,
+            now=now,
+        )
+    elif show.linked:
         logger.debug("linked show %s created without content to copy", show.pk)
 
     return builder.new_instance_ids
@@ -826,6 +974,9 @@ def _delete_show(show_id: int) -> None:
     test suite is structurally unable to see. The row is deleted here with its
     children, which is what the expectation says and what a station wants.
     """
+    # Queued content first: cc_schedule has no foreign key to anything, so
+    # deleting the rows below by hand still leaves its items behind.
+    Schedule.objects.filter(instance__show_id=show_id).delete()
     ShowHost.objects.filter(show_id=show_id).delete()
     ShowRebroadcast.objects.filter(show_id=show_id).delete()
     ShowDays.objects.filter(show_id=show_id).delete()
@@ -936,3 +1087,667 @@ def _unmark_files_no_longer_scheduled(now: datetime) -> None:
     stale = File.objects.filter(scheduled=True).exclude(pk__in=still_scheduled)
 
     stale.update(scheduled=False)
+
+
+# -- editing -------------------------------------------------------------------
+
+#: The repeat kinds whose instances are built by counting from the first show date.
+#: Move that date and every one of them lands on the wrong night, so an edit that
+#: moves it starts the show again rather than shifting it. Weekly shows are not in
+#: this list: their instances are anchored to a weekday, and moving the first date
+#: to another Friday does not move the Fridays.
+RESTART_ON_START_DATE_CHANGE = {1, 4, 5, 2, 3}
+
+
+@dataclass(frozen=True)
+class _Original:
+    """
+    What the show was before this edit.
+
+    ``storeOrigLocalShowInfo``: the rule the instances were built from, its timezone
+    and its start time, kept apart from the payload because the payload may change
+    the timezone, and because the instances have to be found by where the show
+    *used* to air. A show edited across a DST boundary is where that matters: read
+    the old start in the new zone and every instance shifts by an hour.
+    """
+
+    timezone_name: str
+    start_hour: int
+    start_minute: int
+    first_show_on: date
+    start_time: time
+    repeat_kind: int
+    week_day: int | None
+
+    @property
+    def local_start(self) -> datetime:
+        """The old start, on the wall clock of the show's own zone."""
+        return datetime.combine(self.first_show_on, self.start_time).replace(
+            tzinfo=ZoneInfo(self.timezone_name)
+        )
+
+
+def _read_original(show: Show) -> _Original | None:
+    """
+    The rule an edit is measured against, or ``None`` if there is nothing to measure.
+
+    A show with no rules cannot be edited rather than created; php would fatal on
+    the missing row, and here it takes the create path, which is the only one that
+    describes what is in the database.
+    """
+    rules = list(ShowDays.objects.filter(show=show).order_by("id"))
+
+    if not rules:
+        return None
+
+    # php asks the show whether it repeats - which means: is its *first* rule a
+    # repeating one - and then reads the first repeating rule, or just the first.
+    if rules[0].repeat_kind != NO_REPEAT:
+        rule = next((row for row in rules if row.repeat_kind != NO_REPEAT), rules[0])
+    else:
+        rule = rules[0]
+
+    hour, minute, _ = (rule.start_time.strftime("%H:%M:%S").split(":") + ["0"])[:3]
+
+    return _Original(
+        timezone_name=rule.timezone,
+        start_hour=int(hour),
+        start_minute=int(minute),
+        first_show_on=rule.first_show_on,
+        start_time=rule.start_time,
+        repeat_kind=rule.repeat_kind,
+        week_day=rule.week_day,
+    )
+
+
+def _informer(original: _Original, show: Show):
+    """
+    The builder's look-up for "is there already an instance at this instant".
+
+    php's ``getInstance()`` reads the candidate instant in the zone the show had
+    *before* the edit, sets the clock back to the time the show used to start at,
+    and converts to UTC before matching. That round trip is what lets an edit across
+    a DST boundary find the row it is moving instead of creating a second one -
+    the instances were written against the old wall clock, and so is the candidate.
+    """
+
+    def adopt(starts_utc: datetime) -> ShowInstance | None:
+        if original.repeat_kind == NO_REPEAT:
+            # A show that runs once has exactly one instance to find, and php looks
+            # it up by the old start rather than by the occurrence.
+            found = ShowInstance.objects.filter(
+                show=show,
+                starts_at=to_instant(original.local_start),
+                rebroadcast=0,
+            ).first()
+
+            if found is None:
+                raise ShowInstanceNotFound(
+                    f"show {show.pk} has no instance at {original.local_start:%Y-%m-%d %H:%M}"
+                )
+
+            return found
+
+        shifted = (
+            to_instant(starts_utc)
+            .astimezone(ZoneInfo(original.timezone_name))
+            .replace(
+                hour=original.start_hour,
+                minute=original.start_minute,
+                second=0,
+                microsecond=0,
+            )
+            .astimezone(UTC)
+        )
+
+        return ShowInstance.objects.filter(
+            show=show, starts_at=shifted, rebroadcast=0
+        ).first()
+
+    return adopt
+
+
+def _cleanup_instances(
+    form: ShowForm, show: Show, original: _Original, now: datetime
+) -> list[int]:
+    """
+    Remove what the new rules no longer describe, and report which days are new.
+
+    Port of ``delegateInstanceCleanup()``, whose own comment says "this function is
+    messy, needs refactoring". It is reproduced branch by branch rather than
+    tidied, because each branch exists for a case a station hit once: the order of
+    the deletions decides which rows survive, and a tidier version would be a new
+    design that nobody has proved equivalent.
+
+    The returned days of the week are threaded through the legacy instance builders
+    as ``$daysAdded`` and never read by them - an added day's instances are created
+    because its rule is new, and an existing day's are not because the builder finds
+    the instances already there. Computing the list is still what deletes the removed
+    days' rows, so it is returned; nothing consumes it.
+    """
+    rules = list(ShowDays.objects.filter(show=show).order_by("id"))
+
+    if not rules:
+        return []
+
+    current = (
+        rules[0]
+        if original.repeat_kind == NO_REPEAT
+        else next((row for row in rules if row.repeat_kind != NO_REPEAT), rules[0])
+    )
+    repeating_rules = [row for row in rules if row.repeat_kind != NO_REPEAT]
+
+    days_added: list[int] = []
+
+    if form.repeats != (current.repeat_kind != NO_REPEAT):
+        _delete_all_repeat_instances(current, show, now)
+
+        if not form.repeats:
+            _delete_all_rules(show)
+
+        if form.repeats and current.week_day is not None:
+            days_added.append(current.week_day)
+
+    if form.repeats:
+        local_start = _local_start(current)
+
+        if (
+            form.repeat_kind in RESTART_ON_START_DATE_CHANGE
+            and form.start_date != local_start.date()
+        ):
+            # Counting from a different first date puts every instance in the wrong
+            # place, so the show starts again from here.
+            _delete_all_instances(show, now)
+
+        if current.repeat_kind != NO_REPEAT and form.repeat_kind != current.repeat_kind:
+            _delete_all_instances(show, now)
+            _delete_all_rules(show)
+        elif current.repeat_kind != 2:
+            # Monthly-on-a-date rules carry no weekday, so there is nothing to
+            # compare: a weekday can only have changed on a rule that has one.
+            existing_days = [row.week_day for row in repeating_rules]
+            days_added += _reconcile_days(
+                form.days, existing_days, repeating_rules, show, now
+            )
+
+            if form.start_date != local_start.date() or form.start_time != (
+                local_start.timetz().replace(tzinfo=None)
+            ):
+                if form.start_date > local_start.date():
+                    _delete_instances_before(form.start_date, show, now)
+
+        end = _payload_end(form)
+        current_end = _repeating_end_date(show)
+
+        if end is not None and (current_end is None or end < current_end):
+            _delete_instances_from(end.astimezone(UTC).date(), show, now)
+
+    return days_added
+
+
+def _reconcile_days(
+    wanted: tuple[int, ...],
+    existing: list[int | None],
+    rules: list[ShowDays],
+    show: Show,
+    now: datetime,
+) -> list[int]:
+    """
+    Add the days that are new, drop the instances of the days that were removed.
+
+    Returns the added weekdays, which - as above - nothing reads.
+    """
+    present = [day for day in existing if day is not None]
+
+    changed = len(wanted) != len(present) or set(wanted) != set(present)
+
+    if not changed:
+        return []
+
+    removed = [day for day in present if day not in wanted]
+    added = [day for day in wanted if day not in present]
+
+    if removed:
+        _delete_removed_day_instances(removed, rules, show, now)
+
+    return added
+
+
+def _local_start(rule: ShowDays) -> datetime:
+    """A rule's first date and time, on its own wall clock."""
+    return datetime.combine(rule.first_show_on, rule.start_time).replace(
+        tzinfo=ZoneInfo(rule.timezone)
+    )
+
+
+# -- the deletions an edit makes -----------------------------------------------
+
+
+def _sql(statement: str, params: Mapping[str, Any]) -> None:
+    from django.db import connection  # noqa: PLC0415
+
+    connection.cursor().execute(statement, params)
+
+
+def _delete_instance_rows(clause: str, params: Mapping[str, Any]) -> None:
+    """
+    Delete the instances a statement selects, and what is queued inside them.
+
+    The extra statement is the port's, and it is here because ``cc_schedule`` has no
+    foreign key to ``cc_show_instances`` in the shipped schema - php's own bulk
+    deletes therefore leave items scheduled in hours that no longer exist, pointing
+    at instance ids that no longer exist. Upstream's dataset for the scenario that
+    removes a repeat day expects them gone; its test database is built from an
+    installer script with the cascade production does not have, which is the same
+    blind spot that hides the orphaned show days.
+    """
+    _sql(
+        "DELETE FROM cc_schedule WHERE instance_id IN"
+        f" (SELECT id FROM cc_show_instances WHERE {clause})",
+        params,
+    )
+    _sql(f"DELETE FROM cc_show_instances WHERE {clause}", params)
+
+
+def _delete_all_instances(show: Show, now: datetime) -> None:
+    """Every future instance, however it was made."""
+    _delete_instance_rows(
+        "starts > %(timestamp)s AND show_id = %(show_id)s",
+        {"timestamp": to_instant(now), "show_id": show.pk},
+    )
+
+
+def _delete_all_repeat_instances(rule: ShowDays, show: Show, now: datetime) -> None:
+    """
+    Every future instance except the one that matches this rule exactly.
+
+    php keeps ``starts != firstShow`` when a show stops repeating: the single
+    instance the show still describes is not a leftover of the repeat, and deleting
+    it would leave a show that runs once with nothing to run.
+    """
+    _delete_instance_rows(
+        "starts > %(timestamp)s AND show_id = %(show_id)s"
+        " AND starts != %(first_show)s",
+        {
+            "timestamp": to_instant(now),
+            "show_id": show.pk,
+            "first_show": to_instant(_local_start(rule).astimezone(UTC)),
+        },
+    )
+
+
+def _delete_all_rules(show: Show) -> None:
+    _sql("DELETE FROM cc_show_days WHERE show_id = %(show_id)s", {"show_id": show.pk})
+
+
+def _delete_instances_before(first_show_on: date, show: Show, now: datetime) -> None:
+    """
+    Instances before a date the show was moved to.
+
+    Both conditions are needed: ``date(starts) <`` is the new start, and ``starts >``
+    keeps the past out of it. An edit that pushes a show's first night forward does
+    not delete the nights it already aired, and it could not: playout's history
+    points at those rows.
+    """
+    _delete_instance_rows(
+        "date(starts) < %(new_start)s AND starts >"
+        " %(timestamp)s AND show_id = %(show_id)s",
+        {"new_start": first_show_on, "timestamp": to_instant(now), "show_id": show.pk},
+    )
+
+
+def _delete_instances_from(last_show_on: date, show: Show, now: datetime) -> None:
+    """Instances on or after a date the show was cut short at."""
+    _delete_instance_rows(
+        "date(starts) >= %(end_date)s AND starts >"
+        " %(timestamp)s AND show_id = %(show_id)s",
+        {"end_date": last_show_on, "timestamp": to_instant(now), "show_id": show.pk},
+    )
+
+
+def _delete_removed_day_instances(
+    days_removed: list[int], rules: list[ShowDays], show: Show, now: datetime
+) -> None:
+    """
+    The instances of weekdays somebody unticked.
+
+    The weekday is read from the *utc* instant of the rule's first airing, not from
+    the rule's own ``day`` column: a show that airs Friday 02:00 Berlin on a Thursday
+    evening in UTC is deleted by its UTC weekday, which is the weekday the instances
+    are actually on. php does the same conversion, and the two agree only because of
+    it.
+    """
+    utc_week_days = []
+
+    for rule in rules:
+        if rule.week_day in days_removed:
+            rule.refresh_from_db()
+            in_utc = to_instant(_local_start(rule).astimezone(UTC))
+            utc_week_days.append((in_utc.weekday() + 1) % 7)
+
+    ShowDays.objects.filter(show=show, week_day__in=days_removed).delete()
+
+    if utc_week_days:
+        _delete_instance_rows(
+            "EXTRACT(DOW FROM starts) IN ("
+            + ",".join(str(int(day)) for day in utc_week_days)
+            + ") AND starts > %(timestamp)s AND show_id = %(show_id)s",
+            {"timestamp": to_instant(now), "show_id": show.pk},
+        )
+
+
+def _delete_future_rebroadcast_instances(show: Show, now: datetime) -> None:
+    """
+    The replays, all of them, to be rebuilt from the new rules.
+
+    Rebroadcast offsets are relative to an airing and cheap to regenerate, and an
+    edit may change the recording, the offsets or both; carrying the old ones over
+    would mean matching each up with the airing it belongs to, which is exactly the
+    arithmetic the builder is about to do again.
+    """
+    _delete_instance_rows(
+        "starts > %(timestamp)s AND show_id = %(show_id)s AND rebroadcast = 1",
+        {"timestamp": to_instant(now), "show_id": show.pk},
+    )
+
+
+def _delete_rebroadcast_rules(show: Show) -> None:
+    ShowRebroadcast.objects.filter(show=show).delete()
+
+
+def _repeating_end_date(show: Show) -> datetime | None:
+    """
+    The latest end any rule carries, in its own zone.
+
+    ``getRepeatingEndDate()``: one row, ordered by ``last_show`` descending, which in
+    Postgres puts the nulls - the shows that never end - first. So a show with one
+    open-ended rule reports no end date at all, and that is what makes editing the
+    end date of a multi-day show so blunt: the open rule wins, and "no end" means
+    nothing earlier has to be deleted.
+    """
+    rule = ShowDays.objects.filter(show=show).order_by("-last_show_on", "id").first()
+
+    if rule is None or rule.last_show_on is None:
+        return None
+
+    return datetime.combine(rule.last_show_on, time.min).replace(
+        tzinfo=ZoneInfo(rule.timezone)
+    )
+
+
+def _payload_end(form: ShowForm) -> datetime | None:
+    """The end the payload describes, one day past the last day it runs."""
+    if form.no_end:
+        return None
+
+    end_on = form.end_date if form.repeats else form.start_date
+
+    if end_on is None:
+        return None
+
+    return (datetime.combine(end_on, time.min) + timedelta(days=1)).replace(
+        tzinfo=ZoneInfo(form.timezone_name)
+    )
+
+
+# -- the schedule an edit moves ------------------------------------------------
+
+
+def _future_instance_ids(show: Show, now: datetime) -> list[int]:
+    return list(
+        ShowInstance.objects.filter(
+            show=show, starts_at__gt=to_instant(now)
+        ).values_list("id", flat=True)
+    )
+
+
+def _adjust_schedule(
+    form: ShowForm,
+    show: Show,
+    original: _Original,
+    instance_ids: list[int],
+    now: datetime,
+) -> None:
+    """
+    Move what is queued inside the surviving instances, and re-mark it.
+
+    A file cued to start at 20:30 in a show that has just moved to 21:00 has to move
+    too, or playout plays it in the wrong hour - and, unlike a calendar row, a
+    scheduled item carries a cue and a fade that nothing else knows about.
+
+    The difference is measured in the two zones the payload and the database speak:
+    the new start in the zone the form names, the old one read back in the station's
+    own. php does exactly that, and the seam shows only when the two differ - which
+    is why it is copied rather than smoothed over with one sensible zone.
+    """
+    new_start = datetime.combine(form.start_date, form.start_time).replace(
+        tzinfo=ZoneInfo(form.timezone_name)
+    )
+
+    if _show_is_repeating(show) and original.first_show_on != form.start_date:
+        # For a repeating show the first date is an anchor, not a change: the
+        # instances are on the same weekdays, and the difference between the old
+        # first Friday and the new one is a week, not an edit to the airtime.
+        new_start = datetime.combine(original.first_show_on, form.start_time).replace(
+            tzinfo=ZoneInfo(form.timezone_name)
+        )
+
+    station_zone = ZoneInfo(_station_timezone())
+    diff = new_start - to_instant(original.local_start).astimezone(station_zone)
+
+    _shift_schedule_times(instance_ids, diff)
+
+    for pk in _future_instance_ids(show, now):
+        _update_schedule_status(ShowInstance.objects.get(pk=pk), now=now)
+
+
+def _show_is_repeating(show: Show) -> bool:
+    rule = ShowDays.objects.filter(show=show).order_by("id").first()
+
+    return rule is not None and rule.repeat_kind != NO_REPEAT
+
+
+def _station_timezone() -> str:
+    """The station's own zone, which is what php reads the old instance in."""
+    return (
+        Preference.objects.filter(key="timezone")
+        .values_list("value", flat=True)
+        .first()
+        or "UTC"
+    )
+
+
+def _shift_schedule_times(instance_ids: list[int], diff: timedelta) -> None:
+    """
+    Move every queued item of these instances by the same span.
+
+    Row by row, as php does: the interval is applied to each item's own start and
+    end, so an item spanning the hour a DST change falls in moves with its show
+    rather than being re-derived from a wall clock that has shifted under it.
+    """
+    if not diff or not instance_ids:
+        return
+
+    for item in Schedule.objects.filter(instance_id__in=instance_ids):
+        item.starts_at = to_instant(item.starts_at) + diff
+        item.ends_at = to_instant(item.ends_at) + diff
+        item.save(update_fields=["starts_at", "ends_at"])
+
+
+def _update_schedule_status(instance: ShowInstance, *, now: datetime) -> None:
+    """
+    Re-mark where the queued items now sit relative to the instance's end.
+
+    ``updateScheduleStatus()``: filled time, then each item marked as inside the
+    show, straddling its end, or spilled past it. The third case is what playout
+    refuses to start on, so an edit that shortens a show without re-marking leaves
+    a night that will not play.
+    """
+    total = Schedule.objects.filter(instance=instance).aggregate(models.Sum("length"))[
+        "length__sum"
+    ]
+
+    ends_at = to_instant(instance.ends_at)
+    inside = dict(instance_id=instance.pk, position_status__gte=0)
+
+    Schedule.objects.filter(**inside, ends_at__lte=ends_at).update(position_status=1)
+    Schedule.objects.filter(
+        **inside, starts_at__lt=ends_at, ends_at__gt=ends_at
+    ).update(position_status=2)
+    Schedule.objects.filter(**inside, starts_at__gt=ends_at).update(position_status=0)
+
+    instance.filled_time = total or timedelta(0)
+    instance.last_scheduled_at = to_instant(now)
+    instance.save(update_fields=["filled_time", "last_scheduled_at"])
+
+
+def edit_repeating_instance(payload: Mapping[str, Any], *, now: datetime | None = None):
+    """
+    Take one instance out of a repeating sequence and give it its own time.
+
+    The calendar's "edit this instance" dialog, which is a different question from
+    editing the show: the show goes on repeating, and this one night stops being
+    part of the pattern. php does it by deleting whatever single-instance rule was
+    already attached to that night - there can be one from a previous edit, and its
+    ids are not stored, so it is found by the night's original date and time -
+    writing a new rule for the new time, building the one instance, and moving the
+    queued items onto it.
+    """
+    now = now or timezone.now()
+
+    form = ShowForm.from_legacy_payload(payload, with_colors=False)
+
+    if form.show_id is None or form.instance_id is None:
+        raise ShowFormError(
+            "add_show_instance_id: editing one instance has to say which"
+        )
+
+    with transaction.atomic():
+        show = Show.objects.filter(pk=form.show_id).first()
+
+        if show is None:
+            raise ShowFormError(f"add_show_id: no show {form.show_id}")
+
+        original = ShowInstance.objects.filter(pk=form.instance_id).first()
+
+        if original is None:
+            raise ShowInstanceNotFound(form.instance_id)
+
+        station_zone = ZoneInfo(_station_timezone())
+        new_start = datetime.combine(form.start_date, form.start_time).replace(
+            tzinfo=ZoneInfo(form.timezone_name)
+        )
+        diff = new_start - to_instant(original.starts_at).astimezone(station_zone)
+
+        if diff:
+            _shift_schedule_times([original.pk], diff)
+
+        was = to_instant(original.starts_at).astimezone(
+            ZoneInfo(_show_timezone(show) or "UTC")
+        )
+        ShowDays.objects.filter(
+            show=show,
+            repeat_kind=NO_REPEAT,
+            first_show_on=was.date(),
+            start_time=was.time().replace(second=0),
+        ).delete()
+
+        _save_show_days(form, show)
+
+        rule = (
+            ShowDays.objects.filter(
+                show=show,
+                repeat_kind=NO_REPEAT,
+                first_show_on=form.start_date,
+                start_time=form.start_time,
+            )
+            .order_by("-id")
+            .first()
+        )
+
+        if rule is None:
+            raise ShowFormError("add_show_start_date: no rule was written for it")
+
+        builder = InstanceBuilder(now=to_instant(now))
+        edited = builder.create_single(rule, _populate_until(now))
+
+        if edited is not None:
+            Schedule.objects.filter(instance=original).update(instance=edited)
+            _update_schedule_status(edited, now=now)
+            edited.description = form.instance_description or ""
+            edited.save(update_fields=["description"])
+
+        original.modified = True
+        original.description = form.instance_description or ""
+        original.save(update_fields=["modified", "description"])
+
+    update_schedule()
+
+    return edited
+
+
+def _show_timezone(show: Show) -> str | None:
+    rule = ShowDays.objects.filter(show=show).order_by("id").first()
+
+    return rule.timezone if rule else None
+
+
+def _populate_until(now: datetime) -> datetime:
+    return PreferenceStore.shows_populated_until() or to_instant(now)
+
+
+def extend_show_instances(
+    show_id: int,
+    until: date,
+    *,
+    fill_instances: bool = False,
+    now: datetime | None = None,
+) -> dict[int, list[int]]:
+    """
+    Build a show's instances further into the calendar, on request.
+
+    The calendar's "load more": the interface asks for another stretch of weeks and
+    the service builds the show's nights into them, which is ``delegateInstance-
+    Creation`` with an end date past the one the station has populated to.
+
+    ``until`` overrides ``shows_populated_until`` for this call only, and does not
+    write it: a station that asked for a peek at March should not wake up believing
+    its calendar is built to March, because the periodic populator would then stop
+    at that date and never pass it. php keeps the two apart the same way.
+
+    ``fill_instances`` is php's own flag: linked shows air the same content, and the
+    caller that is extending a calendar - rather than populating it on a schedule -
+    says so, because the fresh instances have to be given that content to air.
+    """
+    now = now or timezone.now()
+
+    show = Show.objects.filter(pk=show_id).first()
+
+    if show is None:
+        raise ShowFormError(f"show_id: no show {show_id}")
+
+    rules = list(
+        ShowDays.objects.filter(show=show).exclude(repeat_kind=NO_REPEAT).order_by("id")
+    ) or list(ShowDays.objects.filter(show=show).order_by("id"))
+
+    populate_until = datetime.combine(until, time.min).replace(tzinfo=UTC)
+
+    builder = InstanceBuilder(now=to_instant(now), is_update=True)
+
+    for rule in rules:
+        if rule.repeat_kind == NO_REPEAT:
+            builder.create_single(rule, populate_until)
+        else:
+            builder.build([rule], populate_until=populate_until)
+
+    if show.linked and fill_instances:
+        fill_linked_instances(
+            show,
+            builder.new_instance_ids.get(show.pk, []),
+            populated_until=populate_until,
+            now=now,
+        )
+
+    update_schedule()
+
+    return builder.new_instance_ids

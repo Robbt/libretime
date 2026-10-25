@@ -14,7 +14,7 @@ needs to state.
 
 # The db fixture is asked for its effect, not its value
 # pylint: disable=unused-argument
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from model_bakery import baker
@@ -35,6 +35,8 @@ from libretime_api.schedule.services.show import (
     ShowFormError,
     ShowInstanceInThePast,
     ShowInstanceNotFound,
+    edit_repeating_instance,
+    extend_show_instances,
     format_duration,
     save_show,
 )
@@ -422,38 +424,6 @@ def test_playout_is_told_once_the_show_exists(db, monkeypatch):
     assert notified == [True]
 
 
-def test_editing_a_show_is_not_claimed_before_it_is_ported(db):
-    """
-    The reconciliation of existing instances is the harder half of the editor.
-
-    Until it is, an update would leave instances the new rules no longer describe,
-    so it refuses rather than half-writing a calendar.
-    """
-    show = create()
-
-    with pytest.raises(NotImplementedError):
-        save_show(
-            ShowForm.from_legacy_payload(
-                form(add_show_id=show.pk, add_show_name="edited")
-            ),
-            is_update=True,
-            now=NOW,
-        )
-
-
-def test_a_show_day_duration_round_trips_as_the_column_holds_it(db):
-    show = create(add_show_duration="1h 30m")
-
-    # The column is text, not an interval: it holds whatever format_duration made,
-    # which is why the unpadded "1:30" is what both php and this code store, and why
-    # the instance maths reads it back as one hour thirty.
-    assert ShowDays.objects.get(show=show).duration == "1:30"
-    assert ShowDays.objects.get(show=show).first_show_on.year == 2044
-    assert ShowInstance.objects.filter(show=show).first().ends_at == (
-        ShowInstance.objects.filter(show=show).first().starts_at + timedelta(minutes=90)
-    )
-
-
 # -- deleting -------------------------------------------------------------------
 
 
@@ -768,3 +738,249 @@ def test_playout_is_told_about_a_cancellation(db, monkeypatch):
     )
 
     assert notified == [True]
+
+
+# -- editing -------------------------------------------------------------------
+
+
+def edit(show, **overrides):
+    """Post the payload back for an existing show, as the dialog does."""
+    return save_show(
+        ShowForm.from_legacy_payload(form(add_show_id=show.pk, **overrides)),
+        is_update=True,
+        now=NOW,
+    )[0]
+
+
+def rules(show):
+    return [
+        (
+            rule.first_show_on.strftime("%Y-%m-%d"),
+            rule.last_show_on.strftime("%Y-%m-%d") if rule.last_show_on else None,
+            rule.week_day,
+            rule.repeat_kind,
+            rule.repeat_next_on.strftime("%Y-%m-%d"),
+        )
+        for rule in ShowDays.objects.filter(show=show).order_by("id")
+    ]
+
+
+def calendar(show):
+    return [
+        (
+            to_instant(row.starts_at).strftime("%Y-%m-%d %H:%M"),
+            to_instant(row.ends_at).strftime("%H:%M"),
+            row.modified,
+        )
+        for row in ShowInstance.objects.filter(show=show).order_by("id")
+    ]
+
+
+def instance_payload(show, instance, **overrides):
+    """The payload the calendar posts when one cell is edited."""
+    payload = {
+        "add_show_id": show.pk,
+        "add_show_instance_id": instance.pk,
+        "add_show_name": "test show",
+        "add_show_instance_description": "",
+        "add_show_start_date": "2044-01-08",
+        "add_show_start_time": "01:00",
+        "add_show_end_time": "02:00",
+        "add_show_duration": "01h 00m",
+        "add_show_timezone": "UTC",
+        "add_show_repeats": 0,
+        "add_show_linked": 0,
+        "add_show_no_end": 0,
+        "add_show_end_date_no_repeat": "2044-01-08",
+        "cb_airtime_auth": 0,
+        "cb_custom_auth": 0,
+        "add_show_record": 0,
+        "add_show_rebroadcast": 0,
+        "add_show_hosts": None,
+    }
+    payload.update(overrides)
+
+    return payload
+
+
+@pytest.mark.django_db()
+def test_an_edit_that_ends_a_show_prunes_the_later_nights_and_reuses_the_rule():
+    """
+    php's rows: one rule, rewritten, and the nights past the end gone rather than
+    flagged.
+
+    The difference from the delete path is the calendar's own: an end date says the
+    show stops, so the nights after it were never going to happen, while a cancelled
+    night is a decision about an instance that was on the schedule.
+    """
+    show = create()
+
+    edit(show, add_show_no_end=0, add_show_end_date="2044-01-09")
+
+    assert rules(show) == [("2044-01-01", "2044-01-10", 5, 0, "2044-01-15")]
+    assert calendar(show) == [
+        ("2044-01-01 00:00", "01:00", False),
+        ("2044-01-08 00:00", "01:00", False),
+    ]
+
+
+@pytest.mark.django_db()
+def test_an_edit_that_stops_a_show_repeating_leaves_one_night():
+    show = create()
+
+    edit(show, add_show_repeats=0, add_show_day_check=None)
+
+    # The repeating rule goes rather than being converted: what survives is the
+    # single airing the show still describes, and the instance it was built from is
+    # kept, not replaced - playout's history points at that row.
+    assert rules(show) == [("2044-01-01", None, 5, -1, "2044-01-01")]
+    assert [row[0] for row in calendar(show)] == ["2044-01-01 00:00"]
+
+
+@pytest.mark.django_db()
+def test_an_edit_that_changes_the_interval_rebuilds_from_the_first_night():
+    show = create()
+
+    edit(show, add_show_repeat_type="1")
+
+    # Biweekly counts from the first show, so this is not "the weekly nights minus
+    # every other one": the old instances go and new ones take their place.
+    assert rules(show) == [("2044-01-01", None, 5, 1, "2044-02-12")]
+    assert [row[0] for row in calendar(show)] == [
+        "2044-01-01 00:00",
+        "2044-01-15 00:00",
+        "2044-01-29 00:00",
+    ]
+
+
+@pytest.mark.django_db()
+def test_an_edit_that_adds_a_repeat_day_leaves_the_nights_that_already_exist():
+    show = create(add_show_day_check=[5])
+    before = {row[0] for row in calendar(show)}
+
+    edit(show, add_show_day_check=[5, 1])
+
+    assert [rule.week_day for rule in ShowDays.objects.filter(show=show)] == [5, 1]
+    after = {row[0] for row in calendar(show)}
+
+    assert before < after
+    # The Mondays are new; the Fridays that were already there are the same rows.
+    assert ShowInstance.objects.filter(show=show, modified=True).count() == 0
+    assert ShowInstance.objects.filter(show=show).count() == len(after)
+
+
+@pytest.mark.django_db()
+def test_an_edit_that_takes_a_repeat_day_away_takes_its_nights_with_it():
+    show = create(add_show_day_check=[5, 1])
+
+    edit(show, add_show_day_check=[5])
+
+    assert [rule.week_day for rule in ShowDays.objects.filter(show=show)] == [5]
+    assert {
+        to_instant(row.starts_at).strftime("%a")
+        for row in ShowInstance.objects.filter(show=show)
+    } == {"Fri"}
+
+
+@pytest.mark.django_db()
+def test_one_night_can_be_moved_out_of_a_repeating_show():
+    """
+    The dialog on a single calendar cell: the show goes on Fridays, and this one
+    Friday moves to an hour later and stops being part of the pattern.
+
+    The instance that was there is flagged modified - the same flag the delete path
+    uses, because from the sequence's point of view it is gone - and a new rule and a
+    new instance take its place.
+    """
+    show = create()
+
+    edit_repeating_instance(
+        instance_payload(show, by_start(show, "2044-01-08")), now=NOW
+    )
+
+    assert rules(show) == [
+        # The show's own rule: unchanged, still Friday, still weekly.
+        ("2044-01-01", None, 5, 0, "2044-02-12"),
+        # and the night that left it - the same Friday, an hour later, on its own.
+        ("2044-01-08", "2044-01-09", 5, -1, "2044-01-08"),
+    ]
+    # Ordered by time rather than by id: the night that left the sequence was
+    # written last, so it has the highest id while sitting in the middle of the
+    # calendar.
+    assert sorted(calendar(show))[:3] == [
+        ("2044-01-01 00:00", "01:00", False),
+        ("2044-01-08 00:00", "01:00", True),
+        ("2044-01-08 01:00", "02:00", False),
+    ]
+
+
+@pytest.mark.django_db()
+def test_moving_one_night_moves_what_is_queued_inside_it(db):
+    """
+    An item cued half an hour before a night that moves an hour later still airs
+    half an hour before it.
+
+    php shifts items by the difference between the old start and the new one rather
+    than re-deriving them from the new start, which is what keeps an item that begins
+    before the show - a station ident, a late-running track - where it was.
+    """
+    show = create()
+    victim = by_start(show, "2044-01-08")
+    item = baker.make(
+        "schedule.Schedule",
+        instance=victim,
+        file=baker.make("storage.File", length=timedelta(minutes=4, seconds=32)),
+        starts_at=to_instant(victim.starts_at) - timedelta(minutes=30),
+        ends_at=to_instant(victim.starts_at) - timedelta(minutes=25, seconds=28),
+    )
+
+    edit_repeating_instance(instance_payload(show, victim), now=NOW)
+
+    item.refresh_from_db()
+
+    assert to_instant(item.starts_at) == datetime(2044, 1, 8, 0, 30, tzinfo=UTC)
+
+
+@pytest.mark.django_db()
+def test_a_show_can_be_built_further_into_the_calendar_on_request():
+    """
+    The calendar's "load more", which must not move the populated date.
+
+    A station that looks at March should not end up telling the periodic populator
+    that the calendar is built to March: it would stop there and never pass it.
+    """
+    show = create(add_show_repeat_type="1")
+    until = Preference.objects.get(key="shows_populated_until")
+
+    extend_show_instances(show.pk, date(2044, 3, 12), fill_instances=True, now=NOW)
+
+    assert [row[0] for row in calendar(show)] == [
+        "2044-01-01 00:00",
+        "2044-01-15 00:00",
+        "2044-01-29 00:00",
+        "2044-02-12 00:00",
+        "2044-02-26 00:00",
+        "2044-03-11 00:00",
+    ]
+    assert Preference.objects.get(pk=until.pk).value == POPULATED_UNTIL
+    assert ShowDays.objects.get(show=show).repeat_next_on == date(2044, 3, 25)
+
+
+@pytest.mark.django_db()
+def test_an_edit_that_does_not_say_which_show_is_refused(db):
+    with pytest.raises(ShowFormError):
+        save_show(
+            ShowForm.from_legacy_payload(form(add_show_id=None)),
+            is_update=True,
+            now=NOW,
+        )
+
+
+@pytest.mark.django_db()
+def test_an_edit_of_a_show_that_is_not_there_is_refused(db):
+    with pytest.raises(ShowFormError):
+        save_show(
+            ShowForm.from_legacy_payload(form(add_show_id=424242)),
+            is_update=True,
+            now=NOW,
+        )

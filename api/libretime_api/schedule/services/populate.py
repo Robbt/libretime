@@ -28,6 +28,7 @@ here: they belong to the show editor migration.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
@@ -245,11 +246,22 @@ class InstanceBuilder:
             the "do not rebroadcast into the past" check.
         new_instance_ids: Created instance ids per show, in creation order.
         shows: Shows that were visited, in the order their show days appeared.
+        adopt: Look up the instance already at an instant, for an edit.
+        is_update: Whether this build belongs to an edit.
     """
 
     now: datetime
     new_instance_ids: dict[int, list[int]] = field(default_factory=dict)
     shows: dict[int, Show] = field(default_factory=dict)
+    #: Given the UTC start of an occurrence, return the instance already there, or
+    #: ``None``. Set only when a show is being edited, and modelled on the legacy
+    #: ``getInstance()``, which matches on the instant the show *used* to start at so
+    #: that an edit across a DST boundary still finds the row it is moving.
+    adopt: Callable[[datetime], ShowInstance | None] | None = None
+    #: Whether this build is part of an edit. An edit updates an instance that has
+    #: already aired - the calendar would otherwise leave a past night holding the
+    #: old duration - while the populator never touches one.
+    is_update: bool = False
 
     def build(self, show_days: Iterable[ShowDays], populate_until: datetime) -> None:
         """Create instances of ``show_days`` up to ``populate_until`` (UTC)."""
@@ -412,8 +424,30 @@ class InstanceBuilder:
         *,
         rebroadcast_of: int | None = None,
     ) -> ShowInstance:
-        """Insert one ``cc_show_instances`` row, as the legacy ``save()`` did."""
+        """
+        Insert one ``cc_show_instances`` row, as the legacy ``save()`` did.
+
+        When ``adopt`` is set - which is an edit, never the periodic populate - an
+        instance already sitting at that instant is moved to the new times instead
+        of a second one being created beside it. Content scheduled inside it stays:
+        an edit that renames the night does not empty it.
+        """
         rebroadcast = rebroadcast_of is not None
+
+        if rebroadcast_of is None and self.adopt is not None:
+            existing = self.adopt(start.utc)
+
+            if existing is not None:
+                if self.is_update or to_instant(existing.ends_at) > self.now:
+                    existing.show_id = day.show_id
+                    existing.starts_at = start.utc
+                    existing.ends_at = finish.utc
+                    existing.record_enabled = day.record_enabled
+                    existing.save(
+                        update_fields=["show", "starts_at", "ends_at", "record_enabled"]
+                    )
+
+                return existing
 
         instance = ShowInstance(
             show_id=day.show_id,

@@ -52,6 +52,13 @@ DOCUMENTED = {
         "cc_show_instances",
     ): "the port deletes the show's soft-deleted instances; php leaves them for the "
     "same reason. The port is the side that matches upstream's own dataset here.",
+    (
+        "edit_remove_first_repeat_day",
+        "cc_schedule",
+    ): "removing a repeat day removes its instances; php leaves their queued items "
+    "pointing at instance ids that no longer exist, because cc_schedule has no "
+    "foreign key to cc_show_instances either. Upstream's dataset has the items gone "
+    "- the same missing cascade, one table on.",
 }
 
 

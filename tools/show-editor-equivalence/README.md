@@ -27,8 +27,8 @@ comparison below it is comparing the wrong behaviour.
 | `scenarios.json` | what that produced; both sides read it, so they cannot disagree about what was covered |
 | `seed.sql` | the fixture state of `seed_show_service.yml`: two preferences |
 | `clean.sql` | empties the database and restarts the sequences |
-| `run-php.php` | runs each scenario through the legacy service and dumps five tables |
-| `run-py.py` | the same through the python port |
+| `run-php.php` | runs each scenario through the legacy service and dumps the six tables it writes |
+| `run-py.py` | the same through the python port, including the same seed inserts |
 | `compare.py` | row and column level diffing, in two modes |
 
 Rows are dumped as `to_jsonb(...)::text` by both sides rather than as column lists:
@@ -54,40 +54,65 @@ of a full run. Not optional: `addUpdateShow` writes the global
 calendar was built to 2044 would stop populating shows. That is a self-inflicted
 outage, not a test.
 
-## Covered, and what is not
+## Covered
 
-14 scenarios: create with every repeat kind (none, weekly, bi-, tri-, quad-weekly,
-monthly-on-a-date, monthly-on-a-weekday), with an end date, with three repeat days,
-linked, recorded with rebroadcasts; and delete (one instance, a whole show,
-several instances and all following).
+20 scenarios, which is every dataset the legacy suite commits, and every service
+method the editor reaches for:
 
-**Implemented**: the 11 create scenarios — the python port is identical to the
-legacy service on every row. The 3 delete scenarios print `#not-yet|deleteShow`
-rather than an empty comparison, and `compare.py` counts them as pending instead of
-quietly omitting them. The edit scenarios in the same legacy test — editing a
-repeating instance, changing a repeat day or type, which also move content in
-`cc_schedule` — come with the update path.
+- **create** — each repeat kind (none, weekly, bi-, tri-, quad-weekly, monthly on a
+  date, monthly on a weekday), with an end date, with three repeat days, linked, and
+  recorded with ten rebroadcasts.
+- **delete** — one instance, an instance and all following, a whole show.
+- **edit** — set an end date on an open-ended show, stop a show repeating, change its
+  interval, add a repeat day, remove one, move one night out of the sequence, and
+  build a show further into the calendar ("load more").
 
-## A difference that is not the port's
+All 20 run on both sides and the rows are identical, with three documented
+divergences — `compare.py` prints each one, with its reason, on every green run.
 
-Against upstream's own dataset, `delete_whole_show` disagrees in production:
+Two things the scenario list does not duplicate:
 
-    [delete_whole_show] cc_show_days: 0 rows expected, 1 produced
-    [delete_whole_show] cc_show_instances: 0 rows expected, 6 produced
+`test_changeRepeatDayUpdatesScheduleCorrectly` and
+`test_removeFirstRepeatShowDayUpdatesScheduleCorrectly` are the same test. Not
+similar: byte-identical bodies apart from their names, and byte-identical datasets.
+One scenario here covers both, and the comment in `dump-scenarios.php` says so.
 
-`deleteShowInstances` soft-deletes instances (`modified_instance = true`) and
-removes the `cc_show` row when none are left standing, relying on the database to
-take the day rules and instance rows with it. In the shipped schema nothing does:
-`cc_show_days.show_id` and `cc_show_instances.show_id` have no foreign key at all —
-only `cc_show_hosts` has one, `ON DELETE CASCADE`. The legacy test passes because
-`TestHelper::installTestDatabase()` builds its database from the installer SQL,
-which does cascade; the schema an actual station upgrades to does not.
+`test_unlinkLinkedShow.yml` is a dataset with no test. Nothing in the suite
+references it, so its scenario cannot be transcribed without inventing the steps
+that produced it — and inventing them, then comparing to it, would test the guess.
 
-So the test suite and production disagree, and deleting a whole show leaves
-orphaned day rules and instance rows on a real station. Reported upstream.
+## The missing cascades, seen from both sides
 
-Decided, not yet built: when the port gets its delete path it will remove those
-rows explicitly, matching the intent the committed dataset states rather than the
-accident of a missing constraint — and `compare.py` will carry it as a named
-expected divergence, so the choice stays visible instead of quietly making the two
-sides differ.
+`cc_show_days.show_id`, `cc_show_instances.show_id` and `cc_schedule.instance_id`
+have no foreign key in the shipped schema. Only `cc_show_hosts` has one, with
+`ON DELETE CASCADE`. So the legacy service's row deletions leave children behind:
+
+    [delete_whole_show]            cc_show_days, cc_show_instances
+    [edit_remove_first_repeat_day] cc_schedule
+
+In the last one, an item stays queued in an hour that no longer exists, pointing at
+an instance id that no longer exists — and the file keeps its `is_scheduled` lock, so
+the library goes on refusing to move it.
+
+The legacy suite cannot see any of this: `TestHelper::installTestDatabase()` builds
+its database from the installer SQL, which has the cascades, and every dataset
+therefore states that the children go. Upstream's expectation files are right and
+the production schema is what is missing. The port deletes the children explicitly,
+which makes it the side that agrees with the committed intent, and each of the three
+is named in `compare.py`'s `DOCUMENTED` table rather than being quietly normalised
+away.
+
+## Seeding an item, and why not with the scheduler
+
+`edit_remove_first_repeat_day` needs content inside an instance, because the point of
+the scenario is what an edit does to it. The upstream test drives
+`Application_Model_Scheduler::scheduleAfter()` to get it there; both legs of this
+harness insert the rows directly instead — `seedScheduledItem()` in `run-php.php` and
+`seed_scheduled_item()` in `run-py.py`, kept side by side on purpose. Going through
+the scheduler would test the scheduler (whose port lives on another branch) rather
+than the editor, and would make a difference between two schedulers show up as a
+difference between two show editors.
+
+The instance the item belongs to is passed by id in the scenario — `deleteShow(3,
+true)` works the same way — because the harness database restarts its sequences per
+scenario, which is also what lets the legacy tests name rows at all.
