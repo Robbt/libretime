@@ -40,6 +40,21 @@ jobs:
         run: make install
         working-directory: api
 
+      # Two different ranges, and the difference is deliberate rather than an oversight:
+      #
+      #   pull request  the head commit only. This repository squash-merges, so the single
+      #                 commit that lands on main has exactly this tree — checking the head
+      #                 is checking what will arrive, and the commits in between are a
+      #                 review aid that never reaches main.
+      #   push          every commit that just landed, because a direct push to main has no
+      #                 squash in front of it, and the dispatch job below copies
+      #                 api/schema.yml into libretime/client once per commit that touched
+      #                 it. A commit with a stale schema would publish a client library for
+      #                 an api that never existed.
+      #
+      # So: keep api/schema.yml regenerated in the tip of your branch, and do not read the
+      # push range as a requirement to regenerate per commit on a squash-merged pull
+      # request.
       - name: Get pull request commit range
         if: github.event_name == 'pull_request'
         run: echo "COMMIT_RANGE=${{ github.sha }}~1...${{ github.sha }}" >> $GITHUB_ENV
@@ -63,6 +78,15 @@ jobs:
               }
           done
         working-directory: api
+
+      # Up to date is not the same as valid. Everything above compares the file against
+      # what the code generates today, so a document that no OpenAPI client can consume
+      # passes as long as it is wrong consistently. libretime/client is generated from
+      # this file, which makes that a broken dependency rather than a documentation nit.
+      - name: Validate the document
+        run: |
+          pip install --quiet openapi-spec-validator==0.9.0
+          openapi-spec-validator api/schema.yml
 
   dispatch:
     if: >
