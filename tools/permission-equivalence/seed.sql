@@ -67,17 +67,6 @@ VALUES
     (9202, 9102, '2030-01-06 01:00:00', '2030-01-06 02:00:00', '00:00:00',
      '2026-01-01 00:00:00', '', 0, 0, false, false);
 
--- Content placed inside an instance: the row a host is allowed to change when
--- they host the show the instance belongs to.
-INSERT INTO cc_schedule
-    (id, starts, ends, clip_length, fade_in, fade_out, cue_in, cue_out,
-     position, media_item_played, instance_id, file_id)
-VALUES
-    (9301, '2030-01-05 01:00:00', '2030-01-05 01:10:00', '00:10:00', '00:00:00', '00:00:00',
-     '00:00:00', '00:10:00', 0, false, 9201, 9401),
-    (9302, '2030-01-06 01:00:00', '2030-01-06 01:10:00', '00:10:00', '00:00:00', '00:00:00',
-     '00:00:00', '00:10:00', 0, false, 9202, 9402);
-
 -- --------------------------------------------------------------- files ----
 INSERT INTO cc_files (id, name, filepath, mime, file_exists, hidden,
                       is_scheduled, cuein, cueout, length, genre, utime, owner_id)
@@ -88,6 +77,17 @@ VALUES
      '00:00:00', '00:01:00', '00:01:00', 'Ambient', '2030-01-05 00:00:00', 9002),
     (9403, 'nobody file', '/media/nobody.mp3', 'audio/mpeg', true, false, false,
      '00:00:00', '00:01:00', '00:01:00', 'Ambient', '2030-01-05 00:00:00', NULL);
+
+-- Content placed inside an instance: the row a host is allowed to change when
+-- they host the show the instance belongs to.
+INSERT INTO cc_schedule
+    (id, starts, ends, clip_length, fade_in, fade_out, cue_in, cue_out,
+     position, media_item_played, instance_id, file_id)
+VALUES
+    (9301, '2030-01-05 01:00:00', '2030-01-05 01:10:00', '00:10:00', '00:00:00', '00:00:00',
+     '00:00:00', '00:10:00', 0, false, 9201, 9401),
+    (9302, '2030-01-06 01:00:00', '2030-01-06 01:10:00', '00:10:00', '00:00:00', '00:00:00',
+     '00:00:00', '00:10:00', 0, false, 9202, 9402);
 
 -- ---------------------------------------------------------- playlists ----
 INSERT INTO cc_playlist (id, name, description, length, utime, mtime, creator_id)

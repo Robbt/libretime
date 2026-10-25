@@ -7,7 +7,9 @@ Same ``cases.txt``, same output format, real permission code: the real
 rule, which is the only way the comparison says anything.
 """
 
+import os
 import sys
+from pathlib import Path
 
 import django
 
@@ -113,8 +115,15 @@ def decide(user_id: int, kind: str, obj_id: int, action: str):
     return True, f"role={user.role} allowed"
 
 
+# Where cases.txt lives. ab.sh copies this script to /tmp in container mode, which is
+# why it cannot simply read alongside __file__ there, so the directory is named
+# explicitly by the caller: /tools in the container, the harness directory on a plain
+# host. The fallback is for running this file straight from a checkout by hand.
+FIXTURES = os.environ.get("AB_FIXTURES") or str(Path(__file__).resolve().parent)
+
+
 def main() -> int:
-    with open("/tools/cases.txt", encoding="utf-8") as handle:
+    with open(f"{FIXTURES}/cases.txt", encoding="utf-8") as handle:
         lines = handle.read().splitlines()
 
     for line in lines:

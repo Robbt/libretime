@@ -7,6 +7,7 @@ is.
 """
 
 import json
+import os
 import sys
 from datetime import date
 
@@ -46,8 +47,15 @@ TABLES = [
 ]
 
 
+# Same switch as in run-php.php: mounted paths in the development container, checkout
+# paths on a plain host. Both sides have to read the SAME scenarios.json and the SAME
+# fixture scripts, or the two runs are not the same scenario and the comparison is
+# meaningless.
+FIXTURES = os.environ.get("AB_FIXTURES", "/tools")
+
+
 def run_script(name: str) -> None:
-    with open(f"/tools/{name}", encoding="utf-8") as handle:
+    with open(f"{FIXTURES}/{name}", encoding="utf-8") as handle:
         script = handle.read()
 
     for statement in script.split(";"):
@@ -96,7 +104,7 @@ def dump() -> list[str]:
 
 
 def main() -> int:
-    with open("/tools/scenarios.json", encoding="utf-8") as handle:
+    with open(f"{FIXTURES}/scenarios.json", encoding="utf-8") as handle:
         scenarios = json.load(handle)
 
     blocks = []

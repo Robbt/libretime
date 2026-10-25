@@ -8,6 +8,27 @@ objects owned by different people.
     ./ab.sh php        legacy side only
     ./ab.sh python     api side only
 
+### In CI
+
+Same scenario, no containers. `run.sh` sets `AB_MODE=local`, and
+`tools/equivalence-run.sh` (see `tools/EQUIVALENCE.md`) provides what the container mode
+gets from the development stack: a database built by the api's own migrations, one config
+file both sides read, and a RabbitMQ broker.
+
+```bash
+tools/equivalence-run.sh tools/permission-equivalence
+```
+
+On a workstation that means php 8.2 with `bcmath`, `yaml` and `pdo_pgsql`,
+`make -C legacy vendor` in this checkout, `make -C api install`, and a postgres and a
+broker the run can reach:
+
+```bash
+docker run -d --name eq-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15
+docker exec eq-pg psql -U postgres -c "CREATE USER libretime WITH PASSWORD 'libretime' CREATEDB;"
+EQ_DB_SUPER_PASSWORD=postgres tools/equivalence-run.sh tools/permission-equivalence
+```
+
 ## How each side is asked
 
 `cases.txt` is the single source of truth: one `<user> <kind>:<id> <action>` per

@@ -15,13 +15,20 @@
  */
 
 $legacyRoot = getenv('LEGACY_ROOT') ?: '/var/www/html';
+// Where the scenario payloads and the fixture scripts live. In the development
+// container they are mounted at /tools and the legacy tests at /var/www/tests; on a
+// plain host (tools/equivalence-run.sh) they are paths in this checkout. The defaults
+// keep container mode working untouched.
+$fixtures = getenv('AB_FIXTURES') ?: '/tools';
+$testsRoot = getenv('LEGACY_TESTS_DIR') ?: '/var/www/tests';
+
 require_once $legacyRoot . '/application/preload.php';
 require_once $legacyRoot . '/application/check.php';
 require_once $legacyRoot . '/application/configs/constants.php';
-require_once '/var/www/tests/application/testdata/ShowServiceData.php';
+require_once $testsRoot . '/application/testdata/ShowServiceData.php';
 configureDatabase();
 
-$scenarios = json_decode(file_get_contents('/tools/scenarios.json'), true);
+$scenarios = json_decode(file_get_contents($fixtures . '/scenarios.json'), true);
 
 /**
  * Put one item inside a show instance, the way the library's drag-and-drop does.
@@ -138,7 +145,7 @@ $pdo = Propel::getConnection();
 loginAsAdmin($pdo);
 
 foreach ($scenarios as $scenario) {
-    resetFixtureState($pdo, '/tools');
+    resetFixtureState($pdo, $fixtures);
 
     $payload = $scenario['payload'];
     $showId = null;

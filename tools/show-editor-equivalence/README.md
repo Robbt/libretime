@@ -10,6 +10,34 @@ expectation files the project already commits.
     ./ab.sh python     python side only
     ./ab.sh spec       legacy side against the committed expectations
 
+### In CI
+
+Same scenario, no containers. `run.sh` sets `AB_MODE=local`, and
+`tools/equivalence-run.sh` (see `tools/EQUIVALENCE.md`) provides what the container mode
+gets from the development stack: a database built by the api's own migrations, one config
+file both sides read, and a RabbitMQ broker.
+
+```bash
+tools/equivalence-run.sh tools/show-editor-equivalence
+```
+
+On a workstation that means php 8.2 with `bcmath`, `yaml` and `pdo_pgsql`,
+`make -C legacy vendor` in this checkout, `make -C api install`, and a postgres and a
+broker the run can reach:
+
+```bash
+docker run -d --name eq-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15
+docker exec eq-pg psql -U postgres -c "CREATE USER libretime WITH PASSWORD 'libretime' CREATEDB;"
+EQ_DB_SUPER_PASSWORD=postgres tools/equivalence-run.sh tools/show-editor-equivalence
+```
+
+One difference worth knowing before reading a failure: container mode clones the running
+station's schema, local mode builds one from the api's migrations, and some constraints
+never reached long-upgraded databases — which is where the cascades below went missing.
+The ledger only excuses a difference that actually occurs, so the harness passes in both
+environments: on a migrated schema php's own deletes cascade too, all 20 scenarios come
+out identical, and the 18 that have upstream datasets match them as well.
+
 ## Why three legs
 
 The python port agreeing with php would, on its own, only prove that both do the
