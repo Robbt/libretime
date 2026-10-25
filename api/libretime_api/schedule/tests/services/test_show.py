@@ -109,7 +109,7 @@ def no_broker(monkeypatch):
 
 
 def create(**overrides):
-    return save_show(ShowForm.from_legacy_form(form(**overrides)), now=NOW)[0]
+    return save_show(ShowForm.from_legacy_payload(form(**overrides)), now=NOW)[0]
 
 
 def instances(show):
@@ -372,7 +372,7 @@ def test_hosts_are_recorded_and_a_show_may_have_none(db):
 )
 def test_a_payload_that_cannot_describe_a_show_is_refused_by_field(db, overrides):
     with pytest.raises(ShowFormError) as error:
-        save_show(ShowForm.from_legacy_form(form(**overrides)), now=NOW)
+        save_show(ShowForm.from_legacy_payload(form(**overrides)), now=NOW)
 
     assert next(iter(overrides)) in str(error.value)
 
@@ -394,7 +394,7 @@ def test_a_refused_save_leaves_nothing_behind(db, monkeypatch):
 
     with pytest.raises(ShowFormError):
         save_show(
-            ShowForm.from_legacy_form(form(add_show_timezone="Not/AZone")), now=NOW
+            ShowForm.from_legacy_payload(form(add_show_timezone="Not/AZone")), now=NOW
         )
 
     assert Show.objects.exists() is False
@@ -427,7 +427,7 @@ def test_editing_a_show_is_not_claimed_before_it_is_ported(db):
 
     with pytest.raises(NotImplementedError):
         save_show(
-            ShowForm.from_legacy_form(
+            ShowForm.from_legacy_payload(
                 form(add_show_id=show.pk, add_show_name="edited")
             ),
             is_update=True,

@@ -129,12 +129,14 @@ class ShowForm:
     # -- parsing --------------------------------------------------------------
 
     @classmethod
-    def from_legacy_form(cls, data: Mapping[str, Any]) -> "ShowForm":
+    def from_legacy_payload(cls, data: Mapping[str, Any]) -> "ShowForm":
         """
-        Read the payload the legacy editor posts.
+        Read the payload the show dialog posts.
 
-        Kept separate from the api's serializer so the equivalence harness can
-        feed php and python the same dictionary.
+        This is the one reading of a show payload: the dialog posts it, the api
+        rebuilds it from whatever vocabulary the client used, and the equivalence
+        harness feeds php the same dictionary. Rows are written from here, so a
+        show means the same thing whichever way it was asked for.
         """
         repeats = bool(data.get("add_show_repeats"))
         repeat_kind = _repeat_kind(data, repeats)

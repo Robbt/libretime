@@ -1,6 +1,9 @@
 from .playlist import PlaylistContentSerializer, PlaylistSerializer
 from .schedule import ReadScheduleSerializer, WriteScheduleSerializer
 from .show import (
+    LEGACY_DERIVED_FIELD_NAMES,
+    LEGACY_FIELD_NAMES,
+    ShowCreateSerializer,
     ShowDaysSerializer,
     ShowHostSerializer,
     ShowInstanceSerializer,

@@ -79,7 +79,7 @@ def main() -> int:
 
         for step in scenario["steps"]:
             if step[0] == "addUpdateShow":
-                save_show(ShowForm.from_legacy_form(payload), is_update=is_update)
+                save_show(ShowForm.from_legacy_payload(payload), is_update=is_update)
                 is_update = True
 
         blocks.append("\n".join([f"### {scenario['name']}", *dump()]))
