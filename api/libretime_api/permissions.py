@@ -151,14 +151,20 @@ class IsAdminOrOwnUser(BasePermission):
     """
 
     def has_permission(self, request, view):
-        if request.user.is_superuser():
-            return True
-        return False
+        if not request.user.is_authenticated:
+            # A request carrying only the station token has no user at all, and
+            # AnonymousUser.is_superuser is a property while the station's own user
+            # model defines it as a method. Calling it was a TypeError, so this view
+            # answered 500 to every token request instead of refusing it.
+            return False
+
+        return request.user.is_superuser()
 
     def has_object_permission(self, request, view, obj):
-        if request.user.is_superuser():
-            return True
-        return obj.username == request.user
+        if not request.user.is_authenticated:
+            return False
+
+        return request.user.is_superuser() or obj.username == request.user
 
 
 class IsSystemTokenOrUser(BasePermission):
