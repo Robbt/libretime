@@ -28,11 +28,11 @@ here: they belong to the show editor migration.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from enum import IntEnum
-from typing import Iterable
 
 from django.db import connection, models, transaction
 from django.db.models import Q, Sum
@@ -116,8 +116,8 @@ def to_microseconds(value: str | timedelta | None) -> int:
 
     Handles both the ``default_crossfade_duration`` preference - a number of
     seconds as a string - and the interval columns read through the ORM.
-    Unparseable input becomes zero, which is what ``bcsub()`` makes of a non
-    numeric operand.
+    Input that cannot be parsed becomes zero, which is what ``bcsub()`` makes of a
+    non-numeric operand.
     """
     if value is None:
         return 0
