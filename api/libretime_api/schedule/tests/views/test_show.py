@@ -12,6 +12,7 @@ whose words, and that a show that was refused left nothing behind.
 # pylint: disable=unused-argument
 import json
 import re
+from datetime import UTC, date, datetime
 
 import pytest
 from django.db import connection
@@ -20,6 +21,7 @@ from rest_framework.test import APIClient
 
 from libretime_api.core.models import Preference, Role, User
 from libretime_api.schedule.models import Show, ShowDays, ShowInstance, ShowRebroadcast
+from libretime_api.schedule.services.populate import to_instant
 
 PASSWORD = "a-passphrase"
 SHOWS_UNTIL = "2044-02-07 00:00:00"
@@ -478,3 +480,198 @@ def test_playout_is_told_about_a_show_only_once_it_exists(monkeypatch):
     client.post("/api/v2/shows", friday_show(), format="json")
 
     assert notified == [True]
+
+
+# ------------------------------------------------------------------- editing ---
+
+
+def make_show(client, **overrides):
+    response = client.post("/api/v2/shows", friday_show(**overrides), format="json")
+
+    assert response.status_code == 201, response.data
+
+    return response.json()
+
+
+@pytest.mark.django_db()
+def test_editing_a_show_goes_through_the_same_calendar_work():
+    """
+    A put is not an update of one row: the nights change with it.
+
+    Ending the show on the 9th removes the instances after it, which is the same
+    thing the browser's dialog does and the reason this endpoint is not a serializer
+    .save().
+    """
+    client = signed_in()
+    created = make_show(client)
+
+    response = client.put(
+        f"/api/v2/shows/{created['id']}",
+        friday_show(last_show_on="2044-01-09"),
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+
+    show = Show.objects.get(pk=created["id"])
+
+    assert ShowDays.objects.get(show=show).last_show_on == date(2044, 1, 10)
+    assert ShowInstance.objects.filter(show=show).count() == 2
+    # One rule, rewritten - not a second one describing the same Fridays.
+    assert ShowDays.objects.filter(show=show).count() == 1
+
+
+@pytest.mark.django_db()
+def test_a_host_may_not_move_a_show_about_the_calendar():
+    client = signed_in()
+    created = make_show(client)
+
+    host = signed_in(Role.HOST, "voice")
+    response = host.put(
+        f"/api/v2/shows/{created['id']}",
+        friday_show(last_show_on="2044-01-09"),
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert ShowDays.objects.count() == 1
+    assert ShowDays.objects.get().last_show_on is None
+
+
+@pytest.mark.django_db()
+def test_an_edit_needs_the_sessions_token_like_any_other_write():
+    """
+    A session that arrives without its token may read the calendar and change
+    nothing - on a show that exists as well as on one that does not.
+    """
+    client = signed_in()
+    created = make_show(client)
+
+    without_token = APIClient()
+    without_token.post(
+        "/api/v2/session",
+        {"username": "manager", "password": PASSWORD},
+        format="json",
+    )
+
+    response = without_token.put(
+        f"/api/v2/shows/{created['id']}", friday_show(), format="json"
+    )
+
+    assert response.status_code == 403
+    assert ShowDays.objects.get().last_show_on is None
+
+
+@pytest.mark.django_db()
+def test_a_show_can_be_built_out_further_on_request():
+    client = signed_in()
+    created = make_show(client, repeats="biweekly")
+
+    response = client.post(
+        f"/api/v2/shows/{created['id']}/extend",
+        {"until": "2044-03-12"},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.json()["instances_created"] == 3
+
+    show = Show.objects.get(pk=created["id"])
+
+    assert ShowInstance.objects.filter(show=show).count() == 6
+    # Looking at March is not the same as the calendar being built to March: the
+    # station's populated date is what the periodic populator works to, and this
+    # request leaves it alone.
+    assert Preference.objects.get(key="shows_populated_until").value == SHOWS_UNTIL
+
+
+# -------------------------------------------------------------- one night ------
+
+
+@pytest.mark.django_db()
+def test_deleting_one_night_flags_it():
+    client = signed_in()
+    created = make_show(client)
+    show = Show.objects.get(pk=created["id"])
+    victim = ShowInstance.objects.filter(show=show).order_by("starts_at")[2]
+
+    response = client.delete(
+        f"/api/v2/show-instances/{victim.pk}?scope=single", format="json"
+    )
+
+    assert response.status_code == 200, response.data
+    assert ShowInstance.objects.get(pk=victim.pk).modified is True
+    assert ShowInstance.objects.filter(show=show, modified=False).count() == 5
+
+
+@pytest.mark.django_db()
+def test_deleting_a_night_and_all_following_is_a_different_request():
+    client = signed_in()
+    created = make_show(client)
+    show = Show.objects.get(pk=created["id"])
+    third = ShowInstance.objects.filter(show=show).order_by("starts_at")[2]
+
+    response = client.delete(
+        f"/api/v2/show-instances/{third.pk}?scope=following", format="json"
+    )
+
+    assert response.status_code == 200, response.data
+    assert ShowInstance.objects.filter(show=show, modified=False).count() == 2
+
+
+@pytest.mark.django_db()
+def test_the_scope_of_a_delete_has_to_be_one_of_the_two_the_calendar_offers():
+    client = signed_in()
+    created = make_show(client)
+    victim = ShowInstance.objects.filter(show_id=created["id"]).first()
+
+    response = client.delete(f"/api/v2/show-instances/{victim.pk}?scope=please")
+
+    assert response.status_code == 400
+    assert "scope" in response.json()
+    assert ShowInstance.objects.get(pk=victim.pk).modified is False
+
+
+@pytest.mark.django_db()
+def test_a_night_that_already_aired_cannot_be_taken_back():
+    client = signed_in()
+    Preference.objects.filter(key="shows_populated_until").update(value="2024-01-08")
+
+    response = client.post(
+        "/api/v2/shows",
+        friday_show(first_show_on="2024-01-01", last_show_on=None),
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+    aired = ShowInstance.objects.first()
+
+    refused = client.delete(f"/api/v2/show-instances/{aired.pk}?scope=single")
+
+    assert refused.status_code == 400
+    assert "already aired" in str(refused.json())
+
+
+@pytest.mark.django_db()
+def test_one_night_can_be_given_its_own_time():
+    client = signed_in()
+    created = make_show(client)
+    show = Show.objects.get(pk=created["id"])
+    second = ShowInstance.objects.filter(show=show).order_by("starts_at")[1]
+
+    response = client.patch(
+        f"/api/v2/show-instances/{second.pk}",
+        {"start_time": "01:00", "duration": "1:00", "description": "guest host"},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+
+    moved = ShowInstance.objects.get(pk=response.json()["id"])
+
+    assert to_instant(moved.starts_at) == datetime(2044, 1, 8, 1, 0, tzinfo=UTC)
+    assert moved.description == "guest host"
+    # The night it leaves is flagged, and the show's own pattern keeps going.
+    assert ShowInstance.objects.get(pk=second.pk).modified is True
+    assert ShowInstance.objects.filter(show=show, modified=False).count() == 6
+    assert ShowDays.objects.filter(show=show).count() == 2

@@ -531,3 +531,88 @@ __all__ = [
     "ShowRebroadcastSerializer",
     "ShowSerializer",
 ]
+
+
+class ShowEditSerializer(ShowCreateSerializer):
+    """
+    The same payload as a create, for the show named in the url.
+
+    There is no separate vocabulary for an edit, and that is deliberate: the
+    difference between the two is which show is being described, and the url already
+    says. Sending the whole description of a show to change one thing about it is
+    how the calendar works, and it is also what makes an edit safe - the rules, the
+    nights and the end date are all restated, so nothing stale is left behind.
+    """
+
+    def as_legacy_payload(self) -> dict:
+        payload = super().as_legacy_payload()
+        view = self.context.get("view")
+        pk = getattr(view, "kwargs", {}).get("pk") if view else None
+
+        if pk is None:
+            raise serializers.ValidationError({"id": "No show was named."})
+
+        payload["add_show_id"] = int(pk)
+
+        return payload
+
+
+class ShowInstanceEditSerializer(serializers.Serializer):
+    """
+    One night taken out of a repeating show and given its own time.
+
+    The calendar's dialog for a single cell posts the whole show form; this asks for
+    the four things that describe that night, because the show itself is not being
+    edited - the pattern stays, and this instance leaves it.
+    """
+
+    start_time = serializers.TimeField()
+    duration = DurationField()
+    first_show_on = serializers.DateField(required=False)
+    timezone = serializers.CharField(required=False)
+    description = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+
+    def as_legacy_payload(self, show: Show, instance: ShowInstance) -> dict:
+        """The instance dialog's payload, filled in from the night being edited."""
+        started = instance.starts_at
+
+        return {
+            "add_show_id": show.pk,
+            "add_show_instance_id": instance.pk,
+            "add_show_name": show.name,
+            "add_show_instance_description": self.validated_data.get("description")
+            or "",
+            # The night itself, unless the caller named another - which is how a
+            # moved cell differs from a renamed one.
+            "add_show_start_date": self.validated_data.get("first_show_on")
+            or started.date(),
+            "add_show_start_time": self.validated_data["start_time"],
+            "add_show_duration": self.validated_data["duration"],
+            "add_show_timezone": self.validated_data.get("timezone")
+            or _show_timezone(show)
+            or "UTC",
+            # An instance that leaves the pattern stops repeating, and the show's own
+            # rules are not part of this request.
+            "add_show_repeats": 0,
+            "add_show_no_end": 0,
+            "add_show_linked": int(show.linked),
+            "add_show_record": 0,
+            "add_show_rebroadcast": 0,
+            "add_show_hosts": None,
+            "cb_airtime_auth": 0,
+            "cb_custom_auth": 0,
+        }
+
+
+class ExtendShowSerializer(serializers.Serializer):
+    """How far into the calendar to build a show's nights."""
+
+    until = serializers.DateField()
+
+
+def _show_timezone(show: Show) -> str | None:
+    rule = ShowDays.objects.filter(show=show).order_by("id").first()
+
+    return rule.timezone if rule else None

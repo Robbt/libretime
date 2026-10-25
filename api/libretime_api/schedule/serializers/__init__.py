@@ -3,9 +3,12 @@ from .schedule import ReadScheduleSerializer, WriteScheduleSerializer
 from .show import (
     LEGACY_DERIVED_FIELD_NAMES,
     LEGACY_FIELD_NAMES,
+    ExtendShowSerializer,
     ShowCreateSerializer,
     ShowDaysSerializer,
+    ShowEditSerializer,
     ShowHostSerializer,
+    ShowInstanceEditSerializer,
     ShowInstanceSerializer,
     ShowRebroadcastSerializer,
     ShowSerializer,
