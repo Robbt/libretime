@@ -116,8 +116,8 @@ def to_microseconds(value: str | timedelta | None) -> int:
 
     Handles both the ``default_crossfade_duration`` preference - a number of
     seconds as a string - and the interval columns read through the ORM.
-    Unparseable input becomes zero, which is what ``bcsub()`` makes of a non
-    numeric operand.
+    Input that cannot be parsed becomes zero, which is what ``bcsub()`` makes of a
+    non-numeric operand.
     """
     if value is None:
         return 0
