@@ -54,17 +54,17 @@ if [ "$ab_mode" = "local" ]; then
     [ -f "$legacy_root/application/models/Show.php" ] || {
         echo "legacy app not found at $legacy_root" >&2
         exit 1
-    }
+  }
     [ -f "$legacy_root/vendor/autoload.php" ] || {
         echo "legacy dependencies not installed: run make -C legacy vendor" >&2
         exit 1
-    }
+  }
 
     psql() {
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" \
             -p "$EQ_DB_PORT" -U "$EQ_DB_USER" -d "$EQ_DB_NAME" \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     run_php() {
         # run-php.php resolves the app through LEGACY_ROOT, so the checkout under test
@@ -80,33 +80,33 @@ if [ "$ab_mode" = "local" ]; then
         timeout 300 env LEGACY_ROOT="$(cd "$legacy_root" && pwd)" AB_UNTIL="$until" \
             LIBRETIME_LOG_DIR="$EQ_OUT/logs" \
             "$php" "$here/run-php.php"
-    }
+  }
 
     run_py() {
         # django.setup() resolves libretime_api relative to the working directory, the
         # same way manage.py does.
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod AB_UNTIL="$until" \
             sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py"
-    }
+  }
 else
     psql() {
         timeout 120 docker exec -i "$db_container" psql -U libretime -d libretime \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     run_php() {
-        docker cp "$here/run-php.php" "$legacy_container:/tmp/run-php.php" >/dev/null
+        docker cp "$here/run-php.php" "$legacy_container:/tmp/run-php.php" > /dev/null
         timeout 300 docker exec -e AB_UNTIL="$until" "$legacy_container" php /tmp/run-php.php
-    }
+  }
 
     run_py() {
-        docker cp "$here/run-py.py" "$py_container:/tmp/run-py.py" >/dev/null
+        docker cp "$here/run-py.py" "$py_container:/tmp/run-py.py" > /dev/null
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
             -e AB_UNTIL="$until" \
             "$py_container" sh -c 'cd /srv/src/api && .venv/bin/python /tmp/run-py.py'
-    }
+  }
 fi
 
 # seed.sql is the reset mechanism: it deletes every row the harness owns and
