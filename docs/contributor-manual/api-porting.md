@@ -68,7 +68,7 @@ Not the interface. **Playout** does, and playout is the service that goes to air
 | `list_schedule` | `GET /schedule` | the queue it is about to broadcast |
 | `get_show`, `get_show_instance` | `GET /shows/{id}`, `/show-instances/{id}` | which show a queued item belongs to |
 | `get_file`, `download_file` | `GET /files/{id}`, `/files/{id}/download` | the audio itself, via an `X-Accel-Redirect` to shared storage |
-| `update_file` | `PUT /files/{id}` | a recorded show writing its size and md5 back - a **write**, in production, today |
+| `update_file` | `PATCH /files/{id}` | a recorded show writing its size and md5 back - the **only** write to `/api/v2` made by the running system outside a php screen |
 | `get_webstream` | `GET /webstreams/{id}` | what to tune to |
 | `get_info`, `get_stream_preferences`, `get_stream_state` | `/info`, `/stream/preferences`, `/stream/state` | station settings and the on-air state it reports |
 
@@ -278,6 +278,17 @@ disagree in production, so each is a report, listed here so they are not redisco
 - **Webstream permissions** exclude the superadmin role.
 - **Session payloads carry the user's md5 password** in plain text inside the serialised
   session, where nothing needs it.
+- **A recorded show's file size is never stored.** Playout patches
+  `{"filesize": …, "md5": …}` onto `/api/v2/files/{id}` after recording; the api's field
+  is `size` - `filesize` is its column name - and DRF ignores keys it does not know, so
+  the request answers 200 and the row keeps `size = 0`. The md5 lands. Nothing raises:
+  the api does not reject an unrecognised field, and playout catches the broad exception
+  it would have gotten from a 400 and logs it. Found by reading the call sites rather
+  than the endpoint, which is the argument for reading the call sites. The api now has a
+  test pinning the patch that works (`storage/tests/views/test_file.py`); the playout
+  change is one key name, and the open question is whether the api *should* reject
+  unknown fields so that the next one of these fails loudly instead of writing half a
+  row.
 - **Two identical legacy tests** (`changeRepeatDay` and `removeFirstRepeatShowDay` differ
   only in name, datasets included) and one orphaned dataset (`test_unlinkLinkedShow.yml`)
   no test references.
