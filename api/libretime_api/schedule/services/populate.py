@@ -264,6 +264,29 @@ class InstanceBuilder:
                 self._create_monthly(day, populate_until)
             # RepeatType.NONE is filtered out by show_days_in_range().
 
+    def create_single(
+        self, day: ShowDays, populate_until: datetime
+    ) -> ShowInstance | None:
+        """
+        Create the one instance of a show that does not repeat.
+
+        Port of ``createNonRepeatingInstance()``.  The comparison is strict here -
+        ``starts < populate_until`` - where the repeating rules use ``<=``; that is
+        what the legacy code says, and a show starting exactly at the populated
+        boundary waits for the next run.
+        """
+        zone = get_zone(day.timezone)
+        occurrence = Wall.from_fields(day.first_show_on, day.start_time, zone)
+        start, finish = utc_start_end(occurrence, day.duration)
+
+        if start.utc >= to_instant(populate_until):
+            return None
+
+        instance = self._create_instance(day, start, finish)
+        self._create_rebroadcast_instances(day, occurrence, instance.pk)
+
+        return instance
+
     # -- repeat rules ---------------------------------------------------------
 
     def _create_weekly(

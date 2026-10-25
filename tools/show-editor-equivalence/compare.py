@@ -70,6 +70,7 @@ def parse_dump(path: Path) -> dict[str, dict[str, list[dict[str, str]]]]:
     """``### scenario`` blocks of ``table|col=value;...`` lines."""
     scenarios: dict[str, dict[str, list[dict[str, str]]]] = {}
     current: dict[str, list[dict[str, str]]] | None = None
+    name = ""
 
     for line in path.read_text().splitlines():
         line = line.strip()
@@ -79,7 +80,17 @@ def parse_dump(path: Path) -> dict[str, dict[str, list[dict[str, str]]]]:
 
         if line.startswith("### "):
             current = {}
-            scenarios[line[4:]] = current
+            name = line[4:].strip()
+            scenarios[name] = current
+
+            continue
+
+        if line.startswith("#not-yet|"):
+            # The port has this scenario in its list and does not implement the
+            # step yet. Reported as a count, never as a difference: a comparison
+            # that quietly omits a case is worse than one that admits it.
+            scenarios[name] = {"_skipped_": line.split("|", 1)[1]}
+            current = None
 
             continue
 
@@ -184,11 +195,19 @@ def main() -> int:
         return 1
 
     problems = []
+    pending = 0
+    compared = 0
 
     for name in want:
+        if "_skipped_" in got.get(name, {"x": 1}) or "_skipped_" in want.get(name, {"x": 1}):
+            pending += 1
+            continue
+
+        compared += 1
         problems += compare_tables(f"[{name}]", want[name], got[name])
 
-    print(f"{len(want)} scenarios compared")
+    print(f"{compared} scenarios compared", end="")
+    print(f", {pending} the port does not implement yet" if pending else "")
 
     return report(problems)
 

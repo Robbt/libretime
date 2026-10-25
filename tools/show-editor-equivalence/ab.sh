@@ -37,10 +37,12 @@ step() { printf '\n--- %s\n' "$1"; }
 mkdir -p "$out"
 
 step "harness database ($harness_db)"
-if ! timeout 60 docker exec "$db_container" psql -U libretime -d postgres -At \
-        -c "select 1 from pg_database where datname='$harness_db'" | grep -q 1; then
-    timeout 60 docker exec "$db_container" createdb -U libretime "$harness_db"
-fi
+# Rebuilt every run rather than reused: loading the schema into a database that
+# already has it fails on every constraint, and a run that prints errors and then
+# carries on is a run nobody trusts.
+timeout 60 docker exec "$db_container" psql -U libretime -d postgres -q \
+    -c "DROP DATABASE IF EXISTS $harness_db" >/dev/null
+timeout 60 docker exec "$db_container" createdb -U libretime "$harness_db"
 
 # Schema only: an empty station, so instance ids start at 1 the way the legacy
 # tests assume, and none of the real station's preferences are in reach.

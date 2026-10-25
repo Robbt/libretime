@@ -28,7 +28,7 @@ comparison below it is comparing the wrong behaviour.
 | `seed.sql` | the fixture state of `seed_show_service.yml`: two preferences |
 | `clean.sql` | empties the database and restarts the sequences |
 | `run-php.php` | runs each scenario through the legacy service and dumps five tables |
-| `run-py.py` | the same through the python port — **lands with the port**, not yet here; until then `ab.sh` runs the `php` and `spec` legs only |
+| `run-py.py` | the same through the python port |
 | `compare.py` | row and column level diffing, in two modes |
 
 Rows are dumped as `to_jsonb(...)::text` by both sides rather than as column lists:
@@ -61,9 +61,12 @@ monthly-on-a-date, monthly-on-a-weekday), with an end date, with three repeat da
 linked, recorded with rebroadcasts; and delete (one instance, a whole show,
 several instances and all following).
 
-The edit scenarios in the same legacy test — editing a repeating instance, changing
-a repeat day or repeat type, which also move the content in `cc_schedule` — need
-the update path of the port, and are added with it.
+**Implemented**: the 11 create scenarios — the python port is identical to the
+legacy service on every row. The 3 delete scenarios print `#not-yet|deleteShow`
+rather than an empty comparison, and `compare.py` counts them as pending instead of
+quietly omitting them. The edit scenarios in the same legacy test — editing a
+repeating instance, changing a repeat day or type, which also move content in
+`cc_schedule` — come with the update path.
 
 ## A difference that is not the port's
 
