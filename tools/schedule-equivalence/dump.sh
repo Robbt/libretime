@@ -20,12 +20,24 @@ out="$here/out/$side"
 mkdir -p "$out"
 rm -f "$out"/*.csv
 
-psql_dump() {
-    local file="$1" query="$2"
-    timeout 120 docker exec libretime-postgres-1 \
-        psql -U libretime -d libretime -v ON_ERROR_STOP=1 -q \
-        -c "\copy ($query) to stdout with (format csv, header)" > "$out/$file"
-}
+# Same two environments as ab.sh: the development containers, or this host with the
+# database tools/equivalence-run.sh built. The queries below are identical either way —
+# the dumps have to be the same bytes for the comparison to mean anything.
+if [ "${AB_MODE:-container}" = "local" ]; then
+    psql_dump() {
+        local file="$1" query="$2"
+        timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" -p "$EQ_DB_PORT" \
+            -U "$EQ_DB_USER" -d "$EQ_DB_NAME" -v ON_ERROR_STOP=1 -q \
+            -c "\copy ($query) to stdout with (format csv, header)" >"$out/$file"
+    }
+else
+    psql_dump() {
+        local file="$1" query="$2"
+        timeout 120 docker exec "${AB_DB_CONTAINER:-libretime-postgres-1}" \
+            psql -U libretime -d libretime -v ON_ERROR_STOP=1 -q \
+            -c "\copy ($query) to stdout with (format csv, header)" >"$out/$file"
+    }
+fi
 
 # Instance identity: which show, when it airs, which flags it carries, and for
 # rebroadcasts and linked shows, which instance it was derived from

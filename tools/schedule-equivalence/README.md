@@ -18,6 +18,27 @@ tools/schedule-equivalence/ab.sh python       # python only
 AB_UNTIL="2027-12-31 00:00:00" tools/schedule-equivalence/ab.sh
 ```
 
+### In CI
+
+Same scenario, no containers. `run.sh` sets `AB_MODE=local`, and
+`tools/equivalence-run.sh` (see `tools/EQUIVALENCE.md`) provides what the container mode
+gets from the development stack: a database built by the api's own migrations, one config
+file both sides read, and a RabbitMQ broker.
+
+```bash
+tools/equivalence-run.sh tools/schedule-equivalence
+```
+
+On a workstation that means php 8.2 with `bcmath`, `yaml` and `pdo_pgsql`,
+`make -C legacy vendor` in this checkout, `make -C api install`, and a postgres and a
+broker the run can reach:
+
+```bash
+docker run -d --name eq-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15
+docker exec eq-pg psql -U postgres -c "CREATE USER libretime WITH PASSWORD 'libretime' CREATEDB;"
+EQ_DB_SUPER_PASSWORD=postgres tools/equivalence-run.sh tools/schedule-equivalence
+```
+
 What it does, step by step, each step bounded by a timeout and printed:
 
 1. `seed.sql` - wipe the schedule tables and write the fixture shows.
