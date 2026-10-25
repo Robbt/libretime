@@ -22,10 +22,15 @@ history, plus a handful of read-only views. It was a database with a http interf
 
 What that meant in practice:
 
-- **The legacy interface never called it.** The api authenticated with a station-wide
-  `Api-Key` header or HTTP basic auth. The php application's sessions - the thing a
-  logged-in browser actually has - were invisible to it, and its CSRF tokens unusable.
-  Every write a person makes went through php, and continued to.
+- **No person used it.** The api authenticated with a station-wide `Api-Key` header or
+  HTTP basic auth. The php application's sessions - the thing a logged-in browser
+  actually has - were invisible to it, and its CSRF tokens unusable, so the legacy
+  interface made no calls to `/api/v2` at all: not one. Every write a person makes went
+  through php, and continued to.
+
+  A machine used it constantly - see [Who uses it
+  today](#who-uses-it-today) - which is worth stating plainly before anything else on
+  this page, because it decides what counts as a breaking change.
 - **A host could create nothing.** `POST` was mapped to the `change` permission, so the
   entire `add_*` family that the roles grant was dead code. A host has `add_playlist`
   and no `change_playlist`, which meant posting a playlist was refused for exactly the
@@ -53,6 +58,34 @@ The rule the porting work follows is that **a write is only ported when the rows
 leaves are the rows php leaves** - not a similar idea of them, the same bytes. That is
 what makes the difference between a rewrite that can be merged and one that becomes a
 second opinion about what a station's calendar should look like.
+
+### Who uses it today
+
+Not the interface. **Playout** does, and playout is the service that goes to air:
+
+| call | endpoint | why |
+| --- | --- | --- |
+| `list_schedule` | `GET /schedule` | the queue it is about to broadcast |
+| `get_show`, `get_show_instance` | `GET /shows/{id}`, `/show-instances/{id}` | which show a queued item belongs to |
+| `get_file`, `download_file` | `GET /files/{id}`, `/files/{id}/download` | the audio itself, via an `X-Accel-Redirect` to shared storage |
+| `update_file` | `PUT /files/{id}` | a recorded show writing its size and md5 back - a **write**, in production, today |
+| `get_webstream` | `GET /webstreams/{id}` | what to tune to |
+| `get_info`, `get_stream_preferences`, `get_stream_state` | `/info`, `/stream/preferences`, `/stream/state` | station settings and the on-air state it reports |
+
+Two edges run the other way, and both keep php necessary:
+
+- the **analyzer** posts its results to `{public_url}/rest/media/{file_id}` - a php
+  endpoint. An upload through `POST /api/v2/upload` creates the row and publishes the
+  message; php writes the metadata, the duration and the cue points back, and moves the
+  bytes out of `organize/`.
+- the **api's own worker** calls the legacy `/api/` interface (`libretime_api_client.v1`)
+  to trigger php's `TaskManager` - deliberately, as the watchdog that takes the calendar
+  back if this worker stops extending it.
+
+So the compatibility constraint on this port is not "somebody might be parsing this
+json". It is: the schedule, instance and file rows that playout reads have to be the rows
+php would have written, because playout queues audio from them and nothing between the
+two checks whether a night is plausible.
 
 ### A person can sign in, and one login is enough
 
@@ -165,6 +198,10 @@ These are the legacy screens a station uses that the api cannot yet serve. The r
 collections underneath most of them exist, so what is missing is the *behaviour* the
 screen adds:
 
+- **The analyzer's callback.** It reports to php's `/rest/media/{file_id}`. Until that
+  result lands somewhere in the api - `PUT /files/{id}` with the metadata is close, but
+  php's endpoint also moves the file and sets `import_status` - the upload pipeline is
+  two applications wide, and the api cannot own an import on its own.
 - **The radio page.** `stream/state` and `stream/preferences` are read-only. Switching
   between the schedule and a live input, stopping an input, and the microphone controls
   are playout RPC calls that no api view makes yet.
