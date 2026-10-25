@@ -7,18 +7,149 @@ paths:
   /api/v2/files:
     get:
       operationId: files_list
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
+        - in: query
+          name: album_title
+          schema:
+            type: string
+        - in: query
+          name: artist_name
+          schema:
+            type: string
+        - in: query
+          name: bpm_max
+          schema:
+            type: integer
+        - in: query
+          name: bpm_min
+          schema:
+            type: integer
+        - in: query
+          name: composer
+          schema:
+            type: string
+        - in: query
+          name: created_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_before
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: exists
+          schema:
+            type: boolean
         - in: query
           name: genre
           schema:
             type: string
         - in: query
+          name: hidden
+          schema:
+            type: boolean
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: import_status
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+              - 2
+          description: |-
+            * `0` - Success
+            * `1` - Pending
+            * `2` - Failed
+        - in: query
+          name: last_played_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: last_played_before
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: length_max
+          schema:
+            type: string
+        - in: query
+          name: length_min
+          schema:
+            type: string
+        - in: query
+          name: library
+          schema:
+            type: integer
+        - in: query
           name: md5
           schema:
             type: string
+        - in: query
+          name: mime
+          schema:
+            type: string
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: owner
+          schema:
+            type: integer
+        - in: query
+          name: part_of_list
+          schema:
+            type: boolean
+        - in: query
+          name: scheduled
+          schema:
+            type: boolean
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: track_title
+          schema:
+            type: string
+        - in: query
+          name: updated_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: updated_before
+          schema:
+            type: string
+            format: date-time
       tags:
         - files
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -32,6 +163,18 @@ paths:
           description: ""
     post:
       operationId: files_create
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       tags:
         - files
       requestBody:
@@ -47,6 +190,7 @@ paths:
               $ref: "#/components/schemas/File"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -59,6 +203,18 @@ paths:
   /api/v2/files/{id}:
     get:
       operationId: files_retrieve
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -69,6 +225,7 @@ paths:
       tags:
         - files
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -80,6 +237,18 @@ paths:
           description: ""
     put:
       operationId: files_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -102,6 +271,7 @@ paths:
               $ref: "#/components/schemas/File"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -113,6 +283,18 @@ paths:
           description: ""
     patch:
       operationId: files_partial_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -134,6 +316,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedFile"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -145,6 +328,18 @@ paths:
           description: ""
     delete:
       operationId: files_destroy
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -155,6 +350,7 @@ paths:
       tags:
         - files
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -163,6 +359,18 @@ paths:
   /api/v2/files/{id}/download:
     get:
       operationId: files_download_retrieve
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -173,6 +381,7 @@ paths:
       tags:
         - files
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -188,6 +397,7 @@ paths:
       tags:
         - imported-podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -216,6 +426,7 @@ paths:
               $ref: "#/components/schemas/ImportedPodcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -238,6 +449,7 @@ paths:
       tags:
         - imported-podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -271,6 +483,7 @@ paths:
               $ref: "#/components/schemas/ImportedPodcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -303,6 +516,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedImportedPodcast"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -324,6 +538,7 @@ paths:
       tags:
         - imported-podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -335,6 +550,7 @@ paths:
       tags:
         - info
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
         - {}
@@ -351,6 +567,7 @@ paths:
       tags:
         - libraries
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -379,6 +596,7 @@ paths:
               $ref: "#/components/schemas/Library"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -401,6 +619,7 @@ paths:
       tags:
         - libraries
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -434,6 +653,7 @@ paths:
               $ref: "#/components/schemas/Library"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -466,6 +686,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedLibrary"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -487,6 +708,7 @@ paths:
       tags:
         - libraries
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -495,9 +717,41 @@ paths:
   /api/v2/listener-counts:
     get:
       operationId: listener_counts_list
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: mount_name
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: timestamp_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: timestamp_before
+          schema:
+            type: string
+            format: date-time
       tags:
         - listener-counts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -526,6 +780,7 @@ paths:
               $ref: "#/components/schemas/ListenerCount"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -548,6 +803,7 @@ paths:
       tags:
         - listener-counts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -581,6 +837,7 @@ paths:
               $ref: "#/components/schemas/ListenerCount"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -613,6 +870,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedListenerCount"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -634,6 +892,7 @@ paths:
       tags:
         - listener-counts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -642,9 +901,31 @@ paths:
   /api/v2/live-logs:
     get:
       operationId: live_logs_list
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: state
+          schema:
+            type: string
       tags:
         - live-logs
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -673,6 +954,7 @@ paths:
               $ref: "#/components/schemas/LiveLog"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -695,6 +977,7 @@ paths:
       tags:
         - live-logs
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -728,6 +1011,7 @@ paths:
               $ref: "#/components/schemas/LiveLog"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -760,6 +1044,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedLiveLog"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -781,6 +1066,7 @@ paths:
       tags:
         - live-logs
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -792,6 +1078,7 @@ paths:
       tags:
         - login-attempts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -820,6 +1107,7 @@ paths:
               $ref: "#/components/schemas/LoginAttempt"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -842,6 +1130,7 @@ paths:
       tags:
         - login-attempts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -875,6 +1164,7 @@ paths:
               $ref: "#/components/schemas/LoginAttempt"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -907,6 +1197,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedLoginAttempt"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -928,6 +1219,7 @@ paths:
       tags:
         - login-attempts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -936,9 +1228,23 @@ paths:
   /api/v2/mount-names:
     get:
       operationId: mount_names_list
+      parameters:
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - mount-names
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -967,6 +1273,7 @@ paths:
               $ref: "#/components/schemas/MountName"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -989,6 +1296,7 @@ paths:
       tags:
         - mount-names
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1022,6 +1330,7 @@ paths:
               $ref: "#/components/schemas/MountName"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1054,6 +1363,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedMountName"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1075,6 +1385,7 @@ paths:
       tags:
         - mount-names
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1083,9 +1394,55 @@ paths:
   /api/v2/playlist-contents:
     get:
       operationId: playlist_contents_list
+      parameters:
+        - in: query
+          name: block
+          schema:
+            type: integer
+        - in: query
+          name: file
+          schema:
+            type: integer
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: kind
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+              - 2
+          description: |-
+            * `0` - File
+            * `1` - Stream
+            * `2` - Block
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: playlist
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: stream
+          schema:
+            type: integer
       tags:
         - playlist-contents
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1114,6 +1471,7 @@ paths:
               $ref: "#/components/schemas/PlaylistContent"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1136,6 +1494,7 @@ paths:
       tags:
         - playlist-contents
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1169,6 +1528,7 @@ paths:
               $ref: "#/components/schemas/PlaylistContent"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1201,6 +1561,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPlaylistContent"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1222,6 +1583,7 @@ paths:
       tags:
         - playlist-contents
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1230,9 +1592,43 @@ paths:
   /api/v2/playlists:
     get:
       operationId: playlists_list
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: owner
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - playlists
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1246,6 +1642,18 @@ paths:
           description: ""
     post:
       operationId: playlists_create
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       tags:
         - playlists
       requestBody:
@@ -1261,6 +1669,7 @@ paths:
               $ref: "#/components/schemas/Playlist"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1273,6 +1682,18 @@ paths:
   /api/v2/playlists/{id}:
     get:
       operationId: playlists_retrieve
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -1283,6 +1704,7 @@ paths:
       tags:
         - playlists
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1294,6 +1716,18 @@ paths:
           description: ""
     put:
       operationId: playlists_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -1316,6 +1750,7 @@ paths:
               $ref: "#/components/schemas/Playlist"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1327,6 +1762,18 @@ paths:
           description: ""
     patch:
       operationId: playlists_partial_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -1348,6 +1795,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPlaylist"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1359,6 +1807,18 @@ paths:
           description: ""
     delete:
       operationId: playlists_destroy
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -1369,6 +1829,7 @@ paths:
       tags:
         - playlists
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1377,9 +1838,45 @@ paths:
   /api/v2/playout-history:
     get:
       operationId: playout_history_list
+      parameters:
+        - in: query
+          name: file
+          schema:
+            type: integer
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: instance
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: starts_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: starts_before
+          schema:
+            type: string
+            format: date-time
       tags:
         - playout-history
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1408,6 +1905,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistory"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1420,9 +1918,39 @@ paths:
   /api/v2/playout-history-metadata:
     get:
       operationId: playout_history_metadata_list
+      parameters:
+        - in: query
+          name: history
+          schema:
+            type: integer
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: key
+          schema:
+            type: string
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: value
+          schema:
+            type: string
       tags:
         - playout-history-metadata
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1451,6 +1979,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistoryMetadata"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1473,6 +2002,7 @@ paths:
       tags:
         - playout-history-metadata
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1506,6 +2036,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistoryMetadata"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1538,6 +2069,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPlayoutHistoryMetadata"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1559,6 +2091,7 @@ paths:
       tags:
         - playout-history-metadata
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1570,6 +2103,7 @@ paths:
       tags:
         - playout-history-template-fields
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1598,6 +2132,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistoryTemplateField"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1622,6 +2157,7 @@ paths:
       tags:
         - playout-history-template-fields
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1657,6 +2193,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistoryTemplateField"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1691,6 +2228,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPlayoutHistoryTemplateField"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1714,6 +2252,7 @@ paths:
       tags:
         - playout-history-template-fields
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1725,6 +2264,7 @@ paths:
       tags:
         - playout-history-templates
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1753,6 +2293,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistoryTemplate"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1775,6 +2316,7 @@ paths:
       tags:
         - playout-history-templates
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1808,6 +2350,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistoryTemplate"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1840,6 +2383,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPlayoutHistoryTemplate"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1861,6 +2405,7 @@ paths:
       tags:
         - playout-history-templates
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1879,6 +2424,7 @@ paths:
       tags:
         - playout-history
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1912,6 +2458,7 @@ paths:
               $ref: "#/components/schemas/PlayoutHistory"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1944,6 +2491,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPlayoutHistory"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1965,6 +2513,7 @@ paths:
       tags:
         - playout-history
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -1973,9 +2522,35 @@ paths:
   /api/v2/podcast-episodes:
     get:
       operationId: podcast_episodes_list
+      parameters:
+        - in: query
+          name: file
+          schema:
+            type: integer
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: podcast
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - podcast-episodes
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2004,6 +2579,7 @@ paths:
               $ref: "#/components/schemas/PodcastEpisode"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2026,6 +2602,7 @@ paths:
       tags:
         - podcast-episodes
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2059,6 +2636,7 @@ paths:
               $ref: "#/components/schemas/PodcastEpisode"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2091,6 +2669,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPodcastEpisode"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2112,6 +2691,7 @@ paths:
       tags:
         - podcast-episodes
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2120,9 +2700,47 @@ paths:
   /api/v2/podcasts:
     get:
       operationId: podcasts_list
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: itunes_explicit
+          schema:
+            type: string
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: owner
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2136,6 +2754,18 @@ paths:
           description: ""
     post:
       operationId: podcasts_create
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       tags:
         - podcasts
       requestBody:
@@ -2151,6 +2781,7 @@ paths:
               $ref: "#/components/schemas/Podcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2163,6 +2794,18 @@ paths:
   /api/v2/podcasts/{id}:
     get:
       operationId: podcasts_retrieve
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -2173,6 +2816,7 @@ paths:
       tags:
         - podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2184,6 +2828,18 @@ paths:
           description: ""
     put:
       operationId: podcasts_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -2206,6 +2862,7 @@ paths:
               $ref: "#/components/schemas/Podcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2217,6 +2874,18 @@ paths:
           description: ""
     patch:
       operationId: podcasts_partial_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -2238,6 +2907,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPodcast"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2249,6 +2919,18 @@ paths:
           description: ""
     delete:
       operationId: podcasts_destroy
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -2259,6 +2941,7 @@ paths:
       tags:
         - podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2270,6 +2953,7 @@ paths:
       tags:
         - preferences
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2297,6 +2981,7 @@ paths:
             schema:
               $ref: "#/components/schemas/Preference"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2319,6 +3004,7 @@ paths:
       tags:
         - preferences
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2351,6 +3037,7 @@ paths:
             schema:
               $ref: "#/components/schemas/Preference"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2383,6 +3070,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedPreference"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2404,6 +3092,7 @@ paths:
       tags:
         - preferences
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2433,6 +3122,12 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
         - in: query
           name: overbooked
           schema:
@@ -2441,6 +3136,12 @@ paths:
           name: position_status
           schema:
             type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
         - in: query
           name: starts_after
           schema:
@@ -2454,6 +3155,7 @@ paths:
       tags:
         - schedule
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2488,6 +3190,7 @@ paths:
               $ref: "#/components/schemas/WriteSchedule"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2516,6 +3219,7 @@ paths:
       tags:
         - schedule
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2555,6 +3259,7 @@ paths:
               $ref: "#/components/schemas/ReadSchedule"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2593,6 +3298,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedReadSchedule"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2620,6 +3326,7 @@ paths:
       tags:
         - schedule
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2748,6 +3455,7 @@ paths:
       tags:
         - schema
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
         - {}
@@ -2777,6 +3485,7 @@ paths:
       tags:
         - service-registers
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2805,6 +3514,7 @@ paths:
               $ref: "#/components/schemas/ServiceRegister"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2827,6 +3537,7 @@ paths:
       tags:
         - service-registers
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2860,6 +3571,7 @@ paths:
               $ref: "#/components/schemas/ServiceRegister"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2892,6 +3604,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedServiceRegister"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2913,17 +3626,225 @@ paths:
       tags:
         - service-registers
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
         "204":
           description: No response body
+  /api/v2/session:
+    get:
+      operationId: session_retrieve
+      description: |-
+        ``POST`` to log in, ``GET`` to ask who you are, ``DELETE`` to log out.
+
+        Only json is accepted, and that is a security measure rather than taste: a
+        login form on another site can post a form body to this url with the
+        victim's browser, but it cannot post json, so an endpoint that reads nothing
+        else cannot be made to log a victim in to an attacker's account.
+
+        A request that arrives carrying a live session can log in again only by
+        presenting that session's csrf token, like any other write - and doing so
+        logs the session it arrived on out. Two live sessions for one person in one
+        browser is not a state anyone wants: whichever one they log out of, the other
+        keeps them in.
+      tags:
+        - core
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+          description: ""
+    post:
+      operationId: session_create
+      description: |-
+        ``POST`` to log in, ``GET`` to ask who you are, ``DELETE`` to log out.
+
+        Only json is accepted, and that is a security measure rather than taste: a
+        login form on another site can post a form body to this url with the
+        victim's browser, but it cannot post json, so an endpoint that reads nothing
+        else cannot be made to log a victim in to an attacker's account.
+
+        A request that arrives carrying a live session can log in again only by
+        presenting that session's csrf token, like any other write - and doing so
+        logs the session it arrived on out. Two live sessions for one person in one
+        browser is not a state anyone wants: whichever one they log out of, the other
+        keeps them in.
+      tags:
+        - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+        - {}
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+          description: ""
+        "401":
+          description: Wrong username or password.
+    delete:
+      operationId: session_destroy
+      description: |-
+        Log out of the station, not just of this request.
+
+        The session row is cleared rather than deleted - the same thing the legacy
+        ``logoutAction`` leaves behind - and the cookie is dropped so the browser
+        stops offering it. A caller authenticated some other way (an api key, a
+        django session from the browsable api) has no session row here to clear,
+        and gets told so rather than a logout that did nothing.
+      tags:
+        - core
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+      responses:
+        "204":
+          description: No response body
+  /api/v2/session/csrf-token:
+    get:
+      operationId: session_csrf_token_retrieve
+      description: |-
+        The token the caller's own session expects back on a request that writes.
+
+        A page replacing a legacy screen needs this to change anything: the cookie
+        proves which user it is, and this proves the page asked for it. It is handed
+        out over an ordinary authenticated read, which is safe because the same-origin
+        policy is what stops any other page reading the answer - and it is only ever
+        the caller's own token, never somebody else's.
+
+        Callers authenticated some other way get nothing. An API key does not need a
+        CSRF token, and basic authentication has no session to read one from, so
+        there is no case where returning a token here would be correct.
+      tags:
+        - session
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfToken"
+          description: ""
+  /api/v2/session/permissions:
+    get:
+      operationId: session_permissions_retrieve
+      description: |-
+        What the caller's role may do, in the words the api itself uses.
+
+        A browser replacing a legacy screen needs this to draw its own menus. The
+        legacy application answers the same question from
+        ``application/configs/ACL.php``, which lists controllers against roles; that
+        list is about php's own pages and says nothing about ``/api/v2``, so the api
+        reports its own permission names and the interface decides what to show.
+      tags:
+        - core
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionPermissions"
+          description: ""
   /api/v2/show-days:
     get:
       operationId: show_days_list
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: record_enabled
+          schema:
+            type: integer
+            nullable: true
+            enum:
+              - 0
+              - 1
+          description: |-
+            * `0` - No
+            * `1` - Yes
+        - in: query
+          name: repeat_kind
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+              - 2
+              - 4
+              - 5
+          description: |-
+            * `0` - Every week
+            * `1` - Every 2 weeks
+            * `4` - Every 3 weeks
+            * `5` - Every 4 weeks
+            * `2` - Every month
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: show
+          schema:
+            type: integer
+        - in: query
+          name: week_day
+          schema:
+            type: integer
+            nullable: true
+            enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
+              - 5
+              - 6
+          description: |-
+            * `0` - Monday
+            * `1` - Tuesday
+            * `2` - Wednesday
+            * `3` - Thursday
+            * `4` - Friday
+            * `5` - Saturday
+            * `6` - Sunday
       tags:
         - show-days
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2952,6 +3873,7 @@ paths:
               $ref: "#/components/schemas/ShowDays"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -2974,6 +3896,7 @@ paths:
       tags:
         - show-days
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3007,6 +3930,7 @@ paths:
               $ref: "#/components/schemas/ShowDays"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3039,6 +3963,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedShowDays"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3060,6 +3985,7 @@ paths:
       tags:
         - show-days
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3068,9 +3994,35 @@ paths:
   /api/v2/show-hosts:
     get:
       operationId: show_hosts_list
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: show
+          schema:
+            type: integer
+        - in: query
+          name: user
+          schema:
+            type: integer
       tags:
         - show-hosts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3099,6 +4051,7 @@ paths:
               $ref: "#/components/schemas/ShowHost"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3121,6 +4074,7 @@ paths:
       tags:
         - show-hosts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3154,6 +4108,7 @@ paths:
               $ref: "#/components/schemas/ShowHost"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3186,6 +4141,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedShowHost"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3207,6 +4163,7 @@ paths:
       tags:
         - show-hosts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3215,9 +4172,87 @@ paths:
   /api/v2/show-instances:
     get:
       operationId: show_instances_list
+      description: |-
+        A single night of a show.
+
+        Two of the ordinary methods mean something particular here. ``DELETE`` removes
+        that night, or it and every night after it, depending on ``?scope=``: the
+        calendar's two menu entries are not the same request, and a client that wants the
+        show off the air from next week onwards should not have to count. ``PATCH``
+        takes one night out of the show's repeating pattern and gives it its own time -
+        the show goes on airing, this cell stops being part of it.
+      parameters:
+        - in: query
+          name: auto_playlist_built
+          schema:
+            type: boolean
+        - in: query
+          name: ends_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: ends_before
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: instance
+          schema:
+            type: integer
+        - in: query
+          name: modified
+          schema:
+            type: boolean
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: rebroadcast
+          schema:
+            type: integer
+        - in: query
+          name: record_enabled
+          schema:
+            type: integer
+            nullable: true
+            enum:
+              - 0
+              - 1
+          description: |-
+            * `0` - No
+            * `1` - Yes
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: show
+          schema:
+            type: integer
+        - in: query
+          name: starts_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: starts_before
+          schema:
+            type: string
+            format: date-time
       tags:
         - show-instances
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3231,6 +4266,15 @@ paths:
           description: ""
     post:
       operationId: show_instances_create
+      description: |-
+        A single night of a show.
+
+        Two of the ordinary methods mean something particular here. ``DELETE`` removes
+        that night, or it and every night after it, depending on ``?scope=``: the
+        calendar's two menu entries are not the same request, and a client that wants the
+        show off the air from next week onwards should not have to count. ``PATCH``
+        takes one night out of the show's repeating pattern and gives it its own time -
+        the show goes on airing, this cell stops being part of it.
       tags:
         - show-instances
       requestBody:
@@ -3246,6 +4290,7 @@ paths:
               $ref: "#/components/schemas/ShowInstance"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3258,6 +4303,15 @@ paths:
   /api/v2/show-instances/{id}:
     get:
       operationId: show_instances_retrieve
+      description: |-
+        A single night of a show.
+
+        Two of the ordinary methods mean something particular here. ``DELETE`` removes
+        that night, or it and every night after it, depending on ``?scope=``: the
+        calendar's two menu entries are not the same request, and a client that wants the
+        show off the air from next week onwards should not have to count. ``PATCH``
+        takes one night out of the show's repeating pattern and gives it its own time -
+        the show goes on airing, this cell stops being part of it.
       parameters:
         - in: path
           name: id
@@ -3268,6 +4322,7 @@ paths:
       tags:
         - show-instances
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3279,6 +4334,15 @@ paths:
           description: ""
     put:
       operationId: show_instances_update
+      description: |-
+        A single night of a show.
+
+        Two of the ordinary methods mean something particular here. ``DELETE`` removes
+        that night, or it and every night after it, depending on ``?scope=``: the
+        calendar's two menu entries are not the same request, and a client that wants the
+        show off the air from next week onwards should not have to count. ``PATCH``
+        takes one night out of the show's repeating pattern and gives it its own time -
+        the show goes on airing, this cell stops being part of it.
       parameters:
         - in: path
           name: id
@@ -3301,6 +4365,7 @@ paths:
               $ref: "#/components/schemas/ShowInstance"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3312,6 +4377,15 @@ paths:
           description: ""
     patch:
       operationId: show_instances_partial_update
+      description: |-
+        A single night of a show.
+
+        Two of the ordinary methods mean something particular here. ``DELETE`` removes
+        that night, or it and every night after it, depending on ``?scope=``: the
+        calendar's two menu entries are not the same request, and a client that wants the
+        show off the air from next week onwards should not have to count. ``PATCH``
+        takes one night out of the show's repeating pattern and gives it its own time -
+        the show goes on airing, this cell stops being part of it.
       parameters:
         - in: path
           name: id
@@ -3333,6 +4407,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedShowInstance"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3344,6 +4419,15 @@ paths:
           description: ""
     delete:
       operationId: show_instances_destroy
+      description: |-
+        A single night of a show.
+
+        Two of the ordinary methods mean something particular here. ``DELETE`` removes
+        that night, or it and every night after it, depending on ``?scope=``: the
+        calendar's two menu entries are not the same request, and a client that wants the
+        show off the air from next week onwards should not have to count. ``PATCH``
+        takes one night out of the show's repeating pattern and gives it its own time -
+        the show goes on airing, this cell stops being part of it.
       parameters:
         - in: path
           name: id
@@ -3354,6 +4438,7 @@ paths:
       tags:
         - show-instances
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3362,9 +4447,31 @@ paths:
   /api/v2/show-rebroadcasts:
     get:
       operationId: show_rebroadcasts_list
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: show
+          schema:
+            type: integer
       tags:
         - show-rebroadcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3393,6 +4500,7 @@ paths:
               $ref: "#/components/schemas/ShowRebroadcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3415,6 +4523,7 @@ paths:
       tags:
         - show-rebroadcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3448,6 +4557,7 @@ paths:
               $ref: "#/components/schemas/ShowRebroadcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3480,6 +4590,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedShowRebroadcast"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3501,6 +4612,7 @@ paths:
       tags:
         - show-rebroadcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3509,9 +4621,70 @@ paths:
   /api/v2/shows:
     get:
       operationId: shows_list
+      description: |-
+        A show, and the calendar it makes.
+
+        Reading and editing the row is the ordinary behaviour of a viewset. Creating
+        one is not: a show is only on the air once it has repeat days and instances,
+        so ``POST`` goes through the same service the show dialog drives, writes the
+        show, its days, its rebroadcasts, its hosts and its instances in one
+        transaction, and tells the playout service when the transaction commits.
+
+        The request body is documented in :class:`ShowCreateSerializer`. The field
+        names the dialog posts are accepted too, and mean the same thing.
+      parameters:
+        - in: query
+          name: auto_playlist
+          schema:
+            type: integer
+        - in: query
+          name: auto_playlist_enabled
+          schema:
+            type: boolean
+        - in: query
+          name: genre
+          schema:
+            type: string
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: intro_playlist
+          schema:
+            type: integer
+        - in: query
+          name: linkable
+          schema:
+            type: boolean
+        - in: query
+          name: linked
+          schema:
+            type: boolean
+        - in: query
+          name: live_auth_registered
+          schema:
+            type: boolean
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: outro_playlist
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - shows
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3525,21 +4698,33 @@ paths:
           description: ""
     post:
       operationId: shows_create
+      description: |-
+        A show, and the calendar it makes.
+
+        Reading and editing the row is the ordinary behaviour of a viewset. Creating
+        one is not: a show is only on the air once it has repeat days and instances,
+        so ``POST`` goes through the same service the show dialog drives, writes the
+        show, its days, its rebroadcasts, its hosts and its instances in one
+        transaction, and tells the playout service when the transaction commits.
+
+        The request body is documented in :class:`ShowCreateSerializer`. The field
+        names the dialog posts are accepted too, and mean the same thing.
       tags:
         - shows
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Show"
+              $ref: "#/components/schemas/ShowCreate"
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/Show"
+              $ref: "#/components/schemas/ShowCreate"
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/Show"
+              $ref: "#/components/schemas/ShowCreate"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3547,11 +4732,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Show"
+                $ref: "#/components/schemas/ShowCreate"
           description: ""
   /api/v2/shows/{id}:
     get:
       operationId: shows_retrieve
+      description: |-
+        A show, and the calendar it makes.
+
+        Reading and editing the row is the ordinary behaviour of a viewset. Creating
+        one is not: a show is only on the air once it has repeat days and instances,
+        so ``POST`` goes through the same service the show dialog drives, writes the
+        show, its days, its rebroadcasts, its hosts and its instances in one
+        transaction, and tells the playout service when the transaction commits.
+
+        The request body is documented in :class:`ShowCreateSerializer`. The field
+        names the dialog posts are accepted too, and mean the same thing.
       parameters:
         - in: path
           name: id
@@ -3562,6 +4758,7 @@ paths:
       tags:
         - shows
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3573,6 +4770,13 @@ paths:
           description: ""
     put:
       operationId: shows_update
+      description: |-
+        Re-describe a show, and let the calendar work out what that changes.
+
+        The same service the create path uses, with the show's id from the url. The
+        nights already on the calendar are adopted rather than replaced, the ones the
+        new rules no longer produce are removed, and anything queued inside a
+        survivor moves with it.
       parameters:
         - in: path
           name: id
@@ -3586,15 +4790,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Show"
+              $ref: "#/components/schemas/ShowEdit"
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/Show"
+              $ref: "#/components/schemas/ShowEdit"
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/Show"
+              $ref: "#/components/schemas/ShowEdit"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3602,10 +4807,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Show"
+                $ref: "#/components/schemas/ShowEdit"
           description: ""
     patch:
       operationId: shows_partial_update
+      description: |-
+        A show, and the calendar it makes.
+
+        Reading and editing the row is the ordinary behaviour of a viewset. Creating
+        one is not: a show is only on the air once it has repeat days and instances,
+        so ``POST`` goes through the same service the show dialog drives, writes the
+        show, its days, its rebroadcasts, its hosts and its instances in one
+        transaction, and tells the playout service when the transaction commits.
+
+        The request body is documented in :class:`ShowCreateSerializer`. The field
+        names the dialog posts are accepted too, and mean the same thing.
       parameters:
         - in: path
           name: id
@@ -3619,14 +4835,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PatchedShow"
+              $ref: "#/components/schemas/PatchedShowEdit"
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/PatchedShow"
+              $ref: "#/components/schemas/PatchedShowEdit"
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/PatchedShow"
+              $ref: "#/components/schemas/PatchedShowEdit"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3634,10 +4851,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Show"
+                $ref: "#/components/schemas/ShowEdit"
           description: ""
     delete:
       operationId: shows_destroy
+      description: |-
+        A show, and the calendar it makes.
+
+        Reading and editing the row is the ordinary behaviour of a viewset. Creating
+        one is not: a show is only on the air once it has repeat days and instances,
+        so ``POST`` goes through the same service the show dialog drives, writes the
+        show, its days, its rebroadcasts, its hosts and its instances in one
+        transaction, and tells the playout service when the transaction commits.
+
+        The request body is documented in :class:`ShowCreateSerializer`. The field
+        names the dialog posts are accepted too, and mean the same thing.
       parameters:
         - in: path
           name: id
@@ -3648,17 +4876,85 @@ paths:
       tags:
         - shows
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
         "204":
           description: No response body
+  /api/v2/shows/{id}/extend:
+    post:
+      operationId: shows_extend_create
+      description: |-
+        Build a show's nights further into the calendar, on request.
+
+        The calendar's "load more". It does not move the station's populated date -
+        looking at March and having the calendar is not the same as telling the
+        populator the calendar reaches March, which would make it stop there.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          description: A unique integer value identifying this show.
+          required: true
+      tags:
+        - shows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtendShow"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/ExtendShow"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ExtendShow"
+        required: true
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtendShow"
+          description: ""
   /api/v2/smart-block-contents:
     get:
       operationId: smart_block_contents_list
+      parameters:
+        - in: query
+          name: block
+          schema:
+            type: integer
+        - in: query
+          name: file
+          schema:
+            type: integer
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - smart-block-contents
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3687,6 +4983,7 @@ paths:
               $ref: "#/components/schemas/SmartBlockContent"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3709,6 +5006,7 @@ paths:
       tags:
         - smart-block-contents
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3742,6 +5040,7 @@ paths:
               $ref: "#/components/schemas/SmartBlockContent"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3774,6 +5073,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedSmartBlockContent"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3795,6 +5095,7 @@ paths:
       tags:
         - smart-block-contents
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3806,6 +5107,7 @@ paths:
       tags:
         - smart-block-criteria
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3834,6 +5136,7 @@ paths:
               $ref: "#/components/schemas/SmartBlockCriteria"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3856,6 +5159,7 @@ paths:
       tags:
         - smart-block-criteria
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3889,6 +5193,7 @@ paths:
               $ref: "#/components/schemas/SmartBlockCriteria"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3921,6 +5226,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedSmartBlockCriteria"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3942,6 +5248,7 @@ paths:
       tags:
         - smart-block-criteria
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3950,9 +5257,54 @@ paths:
   /api/v2/smart-blocks:
     get:
       operationId: smart_blocks_list
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: kind
+          schema:
+            type: string
+            nullable: true
+            enum:
+              - dynamic
+              - static
+          description: |-
+            * `static` - Static
+            * `dynamic` - Dynamic
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: owner
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - smart-blocks
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3966,6 +5318,18 @@ paths:
           description: ""
     post:
       operationId: smart_blocks_create
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       tags:
         - smart-blocks
       requestBody:
@@ -3981,6 +5345,7 @@ paths:
               $ref: "#/components/schemas/SmartBlock"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -3993,6 +5358,18 @@ paths:
   /api/v2/smart-blocks/{id}:
     get:
       operationId: smart_blocks_retrieve
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4003,6 +5380,7 @@ paths:
       tags:
         - smart-blocks
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4014,6 +5392,18 @@ paths:
           description: ""
     put:
       operationId: smart_blocks_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4036,6 +5426,7 @@ paths:
               $ref: "#/components/schemas/SmartBlock"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4047,6 +5438,18 @@ paths:
           description: ""
     patch:
       operationId: smart_blocks_partial_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4068,6 +5471,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedSmartBlock"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4079,6 +5483,18 @@ paths:
           description: ""
     delete:
       operationId: smart_blocks_destroy
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4089,6 +5505,7 @@ paths:
       tags:
         - smart-blocks
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4100,6 +5517,7 @@ paths:
       tags:
         - station-podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4128,6 +5546,7 @@ paths:
               $ref: "#/components/schemas/StationPodcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4150,6 +5569,7 @@ paths:
       tags:
         - station-podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4183,6 +5603,7 @@ paths:
               $ref: "#/components/schemas/StationPodcast"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4215,6 +5636,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedStationPodcast"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4236,6 +5658,7 @@ paths:
       tags:
         - station-podcasts
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4247,6 +5670,7 @@ paths:
       tags:
         - stream
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4262,6 +5686,7 @@ paths:
       tags:
         - stream
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4274,9 +5699,23 @@ paths:
   /api/v2/timestamps:
     get:
       operationId: timestamps_list
+      parameters:
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - timestamps
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4305,6 +5744,7 @@ paths:
               $ref: "#/components/schemas/Timestamp"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4327,6 +5767,7 @@ paths:
       tags:
         - timestamps
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4360,6 +5801,7 @@ paths:
               $ref: "#/components/schemas/Timestamp"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4392,6 +5834,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedTimestamp"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4413,17 +5856,44 @@ paths:
       tags:
         - timestamps
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
         "204":
           description: No response body
+  /api/v2/upload:
+    post:
+      operationId: upload_create
+      description:
+        A multipart body holding one file. The optional ``library`` field
+        puts it in a library other than the station's default.
+      tags:
+        - upload
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: string
+              format: binary
+      security:
+        - phpSessionCookie: []
+        - cookieAuth: []
+        - basicAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/File"
+          description: ""
   /api/v2/user-tokens:
     get:
       operationId: user_tokens_list
       tags:
         - user-tokens
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4452,6 +5922,7 @@ paths:
               $ref: "#/components/schemas/UserToken"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4474,6 +5945,7 @@ paths:
       tags:
         - user-tokens
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4507,6 +5979,7 @@ paths:
               $ref: "#/components/schemas/UserToken"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4539,6 +6012,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedUserToken"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4560,6 +6034,7 @@ paths:
       tags:
         - user-tokens
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4568,9 +6043,43 @@ paths:
   /api/v2/users:
     get:
       operationId: users_list
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum:
+              - A
+              - G
+              - H
+              - P
+              - S
+          description: |-
+            * `G` - Guest
+            * `H` - Host
+            * `P` - Manager
+            * `A` - Admin
+            * `S` - Superadmin
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - users
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4599,6 +6108,7 @@ paths:
               $ref: "#/components/schemas/User"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4621,6 +6131,7 @@ paths:
       tags:
         - users
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4654,6 +6165,7 @@ paths:
               $ref: "#/components/schemas/User"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4686,6 +6198,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedUser"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4707,6 +6220,7 @@ paths:
       tags:
         - users
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4718,6 +6232,7 @@ paths:
       tags:
         - version
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
         - {}
@@ -4734,6 +6249,7 @@ paths:
       tags:
         - webstream-metadata
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4762,6 +6278,7 @@ paths:
               $ref: "#/components/schemas/WebstreamMetadata"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4784,6 +6301,7 @@ paths:
       tags:
         - webstream-metadata
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4817,6 +6335,7 @@ paths:
               $ref: "#/components/schemas/WebstreamMetadata"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4849,6 +6368,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedWebstreamMetadata"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4870,6 +6390,7 @@ paths:
       tags:
         - webstream-metadata
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4878,9 +6399,47 @@ paths:
   /api/v2/webstreams:
     get:
       operationId: webstreams_list
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+        - in: query
+          name: mime
+          schema:
+            type: string
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - in: query
+          name: owner
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
       tags:
         - webstreams
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4894,6 +6453,18 @@ paths:
           description: ""
     post:
       operationId: webstreams_create
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       tags:
         - webstreams
       requestBody:
@@ -4909,6 +6480,7 @@ paths:
               $ref: "#/components/schemas/Webstream"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4921,6 +6493,18 @@ paths:
   /api/v2/webstreams/{id}:
     get:
       operationId: webstreams_retrieve
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4931,6 +6515,7 @@ paths:
       tags:
         - webstreams
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4942,6 +6527,18 @@ paths:
           description: ""
     put:
       operationId: webstreams_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4964,6 +6561,7 @@ paths:
               $ref: "#/components/schemas/Webstream"
         required: true
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -4975,6 +6573,18 @@ paths:
           description: ""
     patch:
       operationId: webstreams_partial_update
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -4996,6 +6606,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchedWebstream"
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -5007,6 +6618,18 @@ paths:
           description: ""
     delete:
       operationId: webstreams_destroy
+      description: |-
+        Set the owner of a created row to the user who created it.
+
+        Applied to the viewsets whose model has an owner, and deliberately quiet in
+        two cases:
+
+        - the caller named an owner - a manager moving a playlist to somebody else,
+          or an import assigning ownership explicitly. The submitted value wins,
+          because it is the more specific instruction.
+        - nobody is authenticated. A service writing with the api key is not a user,
+          and inventing one would attribute a machine's work to a person. The column
+          stays empty, which is what the analyzer's own imports leave it.
       parameters:
         - in: path
           name: id
@@ -5017,6 +6640,7 @@ paths:
       tags:
         - webstreams
       security:
+        - phpSessionCookie: []
         - cookieAuth: []
         - basicAuth: []
       responses:
@@ -5027,6 +6651,23 @@ components:
     BlankEnum:
       enum:
         - ""
+    CsrfToken:
+      type: object
+      description: The token a session has to present back to write anything.
+      properties:
+        csrf_token:
+          type: string
+      required:
+        - csrf_token
+    ExtendShow:
+      type: object
+      description: How far into the calendar to build a show's nights.
+      properties:
+        until:
+          type: string
+          format: date
+      required:
+        - until
     File:
       type: object
       properties:
@@ -5400,6 +7041,17 @@ components:
           nullable: true
       required:
         - ip
+    LoginRequest:
+      type: object
+      description: What a sign-in request carries.
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - password
+        - username
     MountName:
       type: object
       properties:
@@ -6065,63 +7717,6 @@ components:
         ip:
           type: string
           maxLength: 45
-    PatchedShow:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          maxLength: 255
-        description:
-          type: string
-          nullable: true
-          maxLength: 8192
-        genre:
-          type: string
-          nullable: true
-          maxLength: 255
-        url:
-          type: string
-          nullable: true
-          maxLength: 255
-        image:
-          type: string
-          nullable: true
-          maxLength: 255
-        foreground_color:
-          type: string
-          nullable: true
-          maxLength: 6
-        background_color:
-          type: string
-          nullable: true
-          maxLength: 6
-        live_enabled:
-          type: boolean
-          readOnly: true
-        linked:
-          type: boolean
-        linkable:
-          type: boolean
-        auto_playlist:
-          type: integer
-          nullable: true
-        auto_playlist_enabled:
-          type: boolean
-        auto_playlist_repeat:
-          type: boolean
-        intro_playlist:
-          type: integer
-          nullable: true
-        override_intro_playlist:
-          type: boolean
-        outro_playlist:
-          type: integer
-          nullable: true
-        override_outro_playlist:
-          type: boolean
     PatchedShowDays:
       type: object
       properties:
@@ -6169,6 +7764,105 @@ components:
           nullable: true
         show:
           type: integer
+    PatchedShowEdit:
+      type: object
+      description: |-
+        The same payload as a create, for the show named in the url.
+
+        There is no separate vocabulary for an edit, and that is deliberate: the
+        difference between the two is which show is being described, and the url already
+        says. Sending the whole description of a show to change one thing about it is
+        how the calendar works, and it is also what makes an edit safe - the rules, the
+        nights and the end date are all restated, so nothing stale is left behind.
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        url:
+          nullable: true
+          oneOf:
+            - type: string
+              format: uri
+            - type: string
+              maxLength: 0
+        genre:
+          type: string
+          nullable: true
+        foreground_color:
+          type: string
+          default: ffffff
+        background_color:
+          type: string
+          default: "364492"
+        timezone:
+          type: string
+        first_show_on:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        duration:
+          type: string
+        repeats:
+          allOf:
+            - $ref: "#/components/schemas/RepeatsEnum"
+          default: weekly
+        week_days:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description:
+            Days of the week, 0 is Sunday. Names are accepted on the way
+            in.
+          nullable: true
+        last_show_on:
+          type: string
+          format: date
+          nullable: true
+        record:
+          type: boolean
+          default: false
+        rebroadcasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RebroadcastField"
+        hosts:
+          type: array
+          items:
+            type: integer
+          nullable: true
+        linked:
+          type: boolean
+          default: false
+        auto_playlist:
+          type: integer
+          nullable: true
+        auto_playlist_repeat:
+          type: boolean
+          default: false
+        intro_playlist:
+          type: integer
+          nullable: true
+        outro_playlist:
+          type: integer
+          nullable: true
+        live_stream_enabled:
+          type: boolean
+          default: false
+        live_stream_custom:
+          type: boolean
+          default: false
+        live_stream_user:
+          type: string
+          nullable: true
+        live_stream_password:
+          type: string
+          nullable: true
     PatchedShowHost:
       type: object
       properties:
@@ -6840,6 +8534,27 @@ components:
         - instance
         - position
         - starts_at
+    RebroadcastField:
+      type: object
+      description: |-
+        One airing of a recording, some days after the show that made it.
+
+        Days rather than dates, because for a show that repeats the rebroadcasts repeat
+        with it, and a date would have to mean something different each time. A show
+        that runs once has its rebroadcasts as dates in the calendar, and this means the
+        same thing asked in the other tense: the row stores the number of days either
+        way.
+      properties:
+        after_days:
+          type: integer
+          maximum: 366
+          minimum: 1
+        at:
+          type: string
+          format: time
+      required:
+        - after_days
+        - at
     RecordEnabledEnum:
       enum:
         - 0
@@ -6862,18 +8577,38 @@ components:
         * `4` - Every 3 weeks
         * `5` - Every 4 weeks
         * `2` - Every month
+    RepeatsEnum:
+      enum:
+        - biweekly
+        - monthly
+        - monthly_by_weekday
+        - none
+        - quadweekly
+        - triweekly
+        - weekly
+      type: string
+      description: |-
+        * `biweekly` - biweekly
+        * `monthly` - monthly
+        * `monthly_by_weekday` - monthly_by_weekday
+        * `none` - none
+        * `quadweekly` - quadweekly
+        * `triweekly` - triweekly
+        * `weekly` - weekly
     RoleEnum:
       enum:
         - G
         - H
         - P
         - A
+        - S
       type: string
       description: |-
         * `G` - Guest
         * `H` - Host
         * `P` - Manager
         * `A` - Admin
+        * `S` - Superadmin
     ServiceRegister:
       type: object
       properties:
@@ -6886,6 +8621,50 @@ components:
       required:
         - ip
         - name
+    SessionPermissions:
+      type: object
+      description: What the caller's role may do, in the names the api checks.
+      properties:
+        role:
+          type: string
+        is_superuser:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
+      required:
+        - is_superuser
+        - permissions
+        - role
+    SessionUser:
+      type: object
+      description: The person a session belongs to.
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        role:
+          type: string
+          description: The single-letter role code, as stored.
+        role_label:
+          type: string
+          description: The same role, spelled out.
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+      required:
+        - email
+        - first_name
+        - id
+        - last_name
+        - role
+        - role_label
+        - username
     Show:
       type: object
       properties:
@@ -6953,6 +8732,110 @@ components:
         - name
         - override_intro_playlist
         - override_outro_playlist
+    ShowCreate:
+      type: object
+      description: |-
+        A show, as something to be put on the calendar.
+
+        Not a row. A show is the show, the days it comes back on, and the instances
+        those produce, and creating one writes all three in one transaction and then
+        tells the playout service to reload. The row serializer next to this one
+        describes what a show is; this describes what runs when.
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        url:
+          nullable: true
+          oneOf:
+            - type: string
+              format: uri
+            - type: string
+              maxLength: 0
+        genre:
+          type: string
+          nullable: true
+        foreground_color:
+          type: string
+          default: ffffff
+        background_color:
+          type: string
+          default: "364492"
+        timezone:
+          type: string
+        first_show_on:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        duration:
+          type: string
+        repeats:
+          allOf:
+            - $ref: "#/components/schemas/RepeatsEnum"
+          default: weekly
+        week_days:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description:
+            Days of the week, 0 is Sunday. Names are accepted on the way
+            in.
+          nullable: true
+        last_show_on:
+          type: string
+          format: date
+          nullable: true
+        record:
+          type: boolean
+          default: false
+        rebroadcasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RebroadcastField"
+        hosts:
+          type: array
+          items:
+            type: integer
+          nullable: true
+        linked:
+          type: boolean
+          default: false
+        auto_playlist:
+          type: integer
+          nullable: true
+        auto_playlist_repeat:
+          type: boolean
+          default: false
+        intro_playlist:
+          type: integer
+          nullable: true
+        outro_playlist:
+          type: integer
+          nullable: true
+        live_stream_enabled:
+          type: boolean
+          default: false
+        live_stream_custom:
+          type: boolean
+          default: false
+        live_stream_user:
+          type: string
+          nullable: true
+        live_stream_password:
+          type: string
+          nullable: true
+      required:
+        - duration
+        - first_show_on
+        - name
+        - start_time
+        - timezone
     ShowDays:
       type: object
       properties:
@@ -7006,6 +8889,111 @@ components:
         - id
         - repeat_kind
         - show
+        - start_time
+        - timezone
+    ShowEdit:
+      type: object
+      description: |-
+        The same payload as a create, for the show named in the url.
+
+        There is no separate vocabulary for an edit, and that is deliberate: the
+        difference between the two is which show is being described, and the url already
+        says. Sending the whole description of a show to change one thing about it is
+        how the calendar works, and it is also what makes an edit safe - the rules, the
+        nights and the end date are all restated, so nothing stale is left behind.
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        url:
+          nullable: true
+          oneOf:
+            - type: string
+              format: uri
+            - type: string
+              maxLength: 0
+        genre:
+          type: string
+          nullable: true
+        foreground_color:
+          type: string
+          default: ffffff
+        background_color:
+          type: string
+          default: "364492"
+        timezone:
+          type: string
+        first_show_on:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        duration:
+          type: string
+        repeats:
+          allOf:
+            - $ref: "#/components/schemas/RepeatsEnum"
+          default: weekly
+        week_days:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description:
+            Days of the week, 0 is Sunday. Names are accepted on the way
+            in.
+          nullable: true
+        last_show_on:
+          type: string
+          format: date
+          nullable: true
+        record:
+          type: boolean
+          default: false
+        rebroadcasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RebroadcastField"
+        hosts:
+          type: array
+          items:
+            type: integer
+          nullable: true
+        linked:
+          type: boolean
+          default: false
+        auto_playlist:
+          type: integer
+          nullable: true
+        auto_playlist_repeat:
+          type: boolean
+          default: false
+        intro_playlist:
+          type: integer
+          nullable: true
+        outro_playlist:
+          type: integer
+          nullable: true
+        live_stream_enabled:
+          type: boolean
+          default: false
+        live_stream_custom:
+          type: boolean
+          default: false
+        live_stream_user:
+          type: string
+          nullable: true
+        live_stream_password:
+          type: string
+          nullable: true
+      required:
+        - duration
+        - first_show_on
+        - name
         - start_time
         - timezone
     ShowHost:
@@ -7518,3 +9506,7 @@ components:
       type: apiKey
       in: cookie
       name: sessionid
+    phpSessionCookie:
+      type: apiKey
+      in: cookie
+      name: PHPSESSID
