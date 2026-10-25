@@ -16,7 +16,6 @@ import django
 django.setup()
 
 from django.db import connection  # noqa: E402
-
 from libretime_api.schedule.services.show import (  # noqa: E402
     ShowForm,
     delete_show_instance,
@@ -96,7 +95,9 @@ def dump() -> list[str]:
 
     for table, projection in TABLES:
         with connection.cursor() as cursor:
-            cursor.execute(f"select to_jsonb(t)::text from ({projection}) t")  # noqa: S608
+            cursor.execute(
+                f"select to_jsonb(t)::text from ({projection}) t"
+            )  # noqa: S608
             for (payload,) in cursor.fetchall():
                 lines.append(f"{table}|{payload}")
 
@@ -142,7 +143,9 @@ def main() -> int:
                 args = step["args"]
                 # The calendar's two menu entries, exactly as php gets them: the
                 # instance to remove, and whether it is only that one.
-                delete_show_instance(args[0], single_instance=len(args) > 1 and bool(args[1]))
+                delete_show_instance(
+                    args[0], single_instance=len(args) > 1 and bool(args[1])
+                )
             elif call == "editRepeatingShowInstance":
                 edit_repeating_instance(step["data"])
             elif call == "delegateInstanceCreation":

@@ -113,7 +113,7 @@ class PhpSessionAuthentication(BaseAuthentication):
         # with a rejection rather than being quietly rescued by whoever happens to be
         # logged in to the browser. Cookies are ambient: a browser sends one on every
         # request to the station, whether or not the code making it knows.
-        if "HTTP_AUTHORIZATION" in request.META:
+        if "authorization" in request.headers:
             return None
 
         session_id = request.COOKIES.get(COOKIE_NAME)

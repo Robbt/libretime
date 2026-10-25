@@ -26,9 +26,10 @@ from pathlib import Path
 
 import yaml
 
-SPEC_DIR = Path(
-    __file__
-).resolve().parent.parent.parent / "legacy/tests/application/services/database/datasets"
+SPEC_DIR = (
+    Path(__file__).resolve().parent.parent.parent
+    / "legacy/tests/application/services/database/datasets"
+)
 
 # Values Postgres and the committed yaml write differently for the same thing.
 # Each rule here is a formatting difference, never a semantic one - if a rule ever
@@ -140,14 +141,17 @@ def parse_spec(name: str) -> dict[str, list[dict[str, str]]]:
         # A table listed with nothing under it is the test saying "no rows here",
         # which is an assertion, not an absent table.
         tables[table] = [
-            {column: canon(value) for column, value in row.items()} for row in (rows or [])
+            {column: canon(value) for column, value in row.items()}
+            for row in (rows or [])
         ]
 
     return tables
 
 
 def compare_tables(
-    label: str, want: dict[str, list[dict[str, str]]], got: dict[str, list[dict[str, str]]]
+    label: str,
+    want: dict[str, list[dict[str, str]]],
+    got: dict[str, list[dict[str, str]]],
 ) -> list[tuple[str, str, str]]:
     """Differences as (scenario, table, message) triples."""
     problems = []
@@ -214,7 +218,9 @@ def main() -> int:
             checked += 1
             problems += compare_tables(f"[{name}]", parse_spec(spec), tables)
 
-        print(f"{checked} scenarios compared with upstream datasets, {skipped} without one")
+        print(
+            f"{checked} scenarios compared with upstream datasets, {skipped} without one"
+        )
 
         return report(problems)
 
@@ -235,7 +241,9 @@ def main() -> int:
     compared = 0
 
     for name in want:
-        if "_skipped_" in got.get(name, {"x": 1}) or "_skipped_" in want.get(name, {"x": 1}):
+        if "_skipped_" in got.get(name, {"x": 1}) or "_skipped_" in want.get(
+            name, {"x": 1}
+        ):
             pending += 1
             continue
 
@@ -273,8 +281,12 @@ def report(problems: list[tuple[str, str, str]]) -> int:
     known = sorted(DOCUMENTED.keys() & seen)
 
     if not unexpected:
-        print("identical" if not known else f"identical, {len(known)} documented difference"
-                                            f"{'s' if len(known) > 1 else ''}")
+        print(
+            "identical"
+            if not known
+            else f"identical, {len(known)} documented difference"
+            f"{'s' if len(known) > 1 else ''}"
+        )
 
         for scenario, table in known:
             print(f"  [{scenario}] {table}: {DOCUMENTED[(scenario, table)]}")

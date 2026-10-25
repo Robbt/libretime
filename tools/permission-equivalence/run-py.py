@@ -15,9 +15,6 @@ import django
 
 django.setup()
 
-from rest_framework.request import Request  # noqa: E402
-from rest_framework.test import APIRequestFactory  # noqa: E402
-
 from libretime_api.core.models import User  # noqa: E402
 from libretime_api.core.views.user import UserViewSet  # noqa: E402
 from libretime_api.permissions import IsSystemTokenOrUser  # noqa: E402
@@ -47,6 +44,8 @@ from libretime_api.schedule.views.webstream import (  # noqa: E402
     WebstreamViewSet,
 )
 from libretime_api.storage.views.file import FileViewSet  # noqa: E402
+from rest_framework.request import Request  # noqa: E402
+from rest_framework.test import APIRequestFactory  # noqa: E402
 
 # The api resource that stands for each fixture object kind. The object is read
 # through the viewset's own queryset, so a kind mapped to the wrong viewset shows
@@ -144,10 +143,7 @@ def main() -> int:
             allowed, why = None, f"{type(error).__name__}: {error}"
             verdict = "error"
 
-        sys.stdout.write(
-            f"{user_id} {kind} {obj_id} {action}|"
-            f"{verdict}|{why}\n"
-        )
+        sys.stdout.write(f"{user_id} {kind} {obj_id} {action}|" f"{verdict}|{why}\n")
 
     sys.stdout.flush()
 

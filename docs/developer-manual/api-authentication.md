@@ -118,13 +118,13 @@ asked in this order:
 
 What that adds up to, in the terms the station already uses:
 
-| you are | you may |
-| --- | --- |
-| guest | read |
-| host | read, create media, and change what you created - plus the content of any show you host |
-| host | **not** move, resize, cancel or delete a show, not even your own |
-| manager | all of the above, for anyone's |
-| admin, superadmin | everything |
+| you are           | you may                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| guest             | read                                                                                    |
+| host              | read, create media, and change what you created - plus the content of any show you host |
+| host              | **not** move, resize, cancel or delete a show, not even your own                        |
+| manager           | all of the above, for anyone's                                                          |
+| admin, superadmin | everything                                                                              |
 
 The rules are the legacy application's, kept honest by `tools/permission-equivalence`, which asks php and the api the same 336 questions over a fixture station whose
 objects belong to different people. One difference is deliberate and listed there:

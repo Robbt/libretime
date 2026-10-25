@@ -36,9 +36,10 @@ where it happens:
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Any, Mapping
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.db import connection, models, transaction
@@ -156,7 +157,7 @@ class ShowForm:
     @classmethod
     def from_legacy_payload(
         cls, data: Mapping[str, Any], *, with_colors: bool = True
-    ) -> "ShowForm":
+    ) -> ShowForm:
         """
         Read the payload the show dialog posts.
 

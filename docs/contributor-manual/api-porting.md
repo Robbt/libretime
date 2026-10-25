@@ -31,6 +31,7 @@ What that meant in practice:
   A machine used it constantly - see [Who uses it
   today](#who-uses-it-today) - which is worth stating plainly before anything else on
   this page, because it decides what counts as a breaking change.
+
 - **A host could create nothing.** `POST` was mapped to the `change` permission, so the
   entire `add_*` family that the roles grant was dead code. A host has `add_playlist`
   and no `change_playlist`, which meant posting a playlist was refused for exactly the
@@ -48,7 +49,7 @@ What that meant in practice:
   because there was no way to compare: the two halves had no shared fixture, and the
   legacy unit tests could not run against python code.
 
-The consequence was that the port could not be *merged* into anything: replacing a php
+The consequence was that the port could not be _merged_ into anything: replacing a php
 screen with an api call meant rewriting behaviour that nobody had written down, and the
 behaviour written down was the code itself.
 
@@ -63,14 +64,14 @@ second opinion about what a station's calendar should look like.
 
 Not the interface. **Playout** does, and playout is the service that goes to air:
 
-| call | endpoint | why |
-| --- | --- | --- |
-| `list_schedule` | `GET /schedule` | the queue it is about to broadcast |
-| `get_show`, `get_show_instance` | `GET /shows/{id}`, `/show-instances/{id}` | which show a queued item belongs to |
-| `get_file`, `download_file` | `GET /files/{id}`, `/files/{id}/download` | the audio itself, via an `X-Accel-Redirect` to shared storage |
-| `update_file` | `PATCH /files/{id}` | a recorded show writing its size and md5 back - the **only** write to `/api/v2` made by the running system outside a php screen |
-| `get_webstream` | `GET /webstreams/{id}` | what to tune to |
-| `get_info`, `get_stream_preferences`, `get_stream_state` | `/info`, `/stream/preferences`, `/stream/state` | station settings and the on-air state it reports |
+| call                                                     | endpoint                                        | why                                                                                                                             |
+| -------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `list_schedule`                                          | `GET /schedule`                                 | the queue it is about to broadcast                                                                                              |
+| `get_show`, `get_show_instance`                          | `GET /shows/{id}`, `/show-instances/{id}`       | which show a queued item belongs to                                                                                             |
+| `get_file`, `download_file`                              | `GET /files/{id}`, `/files/{id}/download`       | the audio itself, via an `X-Accel-Redirect` to shared storage                                                                   |
+| `update_file`                                            | `PATCH /files/{id}`                             | a recorded show writing its size and md5 back - the **only** write to `/api/v2` made by the running system outside a php screen |
+| `get_webstream`                                          | `GET /webstreams/{id}`                          | what to tune to                                                                                                                 |
+| `get_info`, `get_stream_preferences`, `get_stream_state` | `/info`, `/stream/preferences`, `/stream/state` | station settings and the on-air state it reports                                                                                |
 
 Two edges run the other way, and both keep php necessary:
 
@@ -89,13 +90,13 @@ two checks whether a night is plausible.
 
 ### A person can sign in, and one login is enough
 
-| endpoint | what it does |
-| --- | --- |
-| `POST /api/v2/session` | signs in, writing a session row in the shape Zend reads |
-| `GET /api/v2/session` | who the caller is |
-| `DELETE /api/v2/session` | signs out, logging the session out for php too |
-| `GET /api/v2/session/permissions` | the caller's role and permission names, for drawing menus |
-| `GET /api/v2/session/csrf-token` | the token the caller's own session expects back on a write |
+| endpoint                          | what it does                                               |
+| --------------------------------- | ---------------------------------------------------------- |
+| `POST /api/v2/session`            | signs in, writing a session row in the shape Zend reads    |
+| `GET /api/v2/session`             | who the caller is                                          |
+| `DELETE /api/v2/session`          | signs out, logging the session out for php too             |
+| `GET /api/v2/session/permissions` | the caller's role and permission names, for drawing menus  |
+| `GET /api/v2/session/csrf-token`  | the token the caller's own session expects back on a write |
 
 The php application's `sessions` table is the single source of identity: the api reads
 it to authenticate a browser, and writes it to sign somebody in. A session created at
@@ -139,13 +140,13 @@ The show editor is the largest single piece of legacy behaviour in the applicati
 (`Application_Service_ShowService`, 1969 lines) and the one a station notices most when
 it is wrong. It is ported end to end:
 
-| endpoint | the calendar's action |
-| --- | --- |
-| `POST /api/v2/shows` | the "add show" dialog: show, repeat rules, rebroadcasts, hosts, and the instances inside the populated window |
-| `PUT /api/v2/shows/{id}` | the "edit show" dialog: adopts the nights that still belong, removes the ones the new rules no longer produce, moves queued content with the nights that survive |
-| `POST /api/v2/shows/{id}/extend` | "load more": builds nights further out without moving the station's populated date |
-| `DELETE /api/v2/show-instances/{id}?scope=single\|following` | the calendar's two delete menu entries |
-| `PATCH /api/v2/show-instances/{id}` | one night taken out of a repeating sequence and given its own time |
+| endpoint                                                     | the calendar's action                                                                                                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v2/shows`                                         | the "add show" dialog: show, repeat rules, rebroadcasts, hosts, and the instances inside the populated window                                                    |
+| `PUT /api/v2/shows/{id}`                                     | the "edit show" dialog: adopts the nights that still belong, removes the ones the new rules no longer produce, moves queued content with the nights that survive |
+| `POST /api/v2/shows/{id}/extend`                             | "load more": builds nights further out without moving the station's populated date                                                                               |
+| `DELETE /api/v2/show-instances/{id}?scope=single\|following` | the calendar's two delete menu entries                                                                                                                           |
+| `PATCH /api/v2/show-instances/{id}`                          | one night taken out of a repeating sequence and given its own time                                                                                               |
 
 `tools/show-editor-equivalence` runs the twenty scenarios the legacy suite defines - every
 repeat kind, an end date, three repeat days, a linked show, a recorded show with ten
@@ -161,13 +162,13 @@ posts, so a show cannot mean one thing to a browser and another to an api client
 
 ### Background work
 
-| task | replaces | runs |
-| --- | --- | --- |
-| `schedule.populate_shows` | the periodic top-up of the future calendar | every 30 min, when `general.show_instance_populator: api` |
-| `schedule.clean_overbooked_schedule` | the schedule's overbooked items, which php trims per instance while scheduling (`trimOverbooked`) | every 6 h |
-| `core.clean_expired_sessions` | session rows past their lifetime | every 6 h |
-| `podcasts.import_episode`, `clean_failed_imports` | the podcast episode download the podcast screen triggers | on demand / hourly |
-| `worker.legacy_trigger_task_manager` | the watchdog, below | every 5 min |
+| task                                              | replaces                                                                                          | runs                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `schedule.populate_shows`                         | the periodic top-up of the future calendar                                                        | every 30 min, when `general.show_instance_populator: api` |
+| `schedule.clean_overbooked_schedule`              | the schedule's overbooked items, which php trims per instance while scheduling (`trimOverbooked`) | every 6 h                                                 |
+| `core.clean_expired_sessions`                     | session rows past their lifetime                                                                  | every 6 h                                                 |
+| `podcasts.import_episode`, `clean_failed_imports` | the podcast episode download the podcast screen triggers                                          | on demand / hourly                                        |
+| `worker.legacy_trigger_task_manager`              | the watchdog, below                                                                               | every 5 min                                               |
 
 Either side can own the calendar and neither can own it twice. `show_instance_populator`
 picks the owner; when it says `api`, the python worker writes a heartbeat the php
@@ -195,7 +196,7 @@ The honest list, grouped by what kind of gap it is.
 ### Writes that have no api endpoint
 
 These are the legacy screens a station uses that the api cannot yet serve. The row-level
-collections underneath most of them exist, so what is missing is the *behaviour* the
+collections underneath most of them exist, so what is missing is the _behaviour_ the
 screen adds:
 
 - **The analyzer's callback.** It reports to php's `/rest/media/{file_id}`. Until that
@@ -271,7 +272,7 @@ disagree in production, so each is a report, listed here so they are not redisco
   therefore leaves its repeat rules and instances pointing at an id that belongs to
   nobody; removing a repeat day leaves items queued in hours that no longer exist, whose
   files stay locked in the library. Every legacy dataset says the children go, because
-  the test database is built from installer SQL *with* the cascades - a bug the test suite
+  the test database is built from installer SQL _with_ the cascades - a bug the test suite
   is structurally unable to see. The port deletes them, matching the intent.
 - **`Playlist::getContents()`** assumes a playlist has a creator; rows created by the
   analyzer have none.
@@ -286,7 +287,7 @@ disagree in production, so each is a report, listed here so they are not redisco
   it would have gotten from a 400 and logs it. Found by reading the call sites rather
   than the endpoint, which is the argument for reading the call sites. The api now has a
   test pinning the patch that works (`storage/tests/views/test_file.py`); the playout
-  change is one key name, and the open question is whether the api *should* reject
+  change is one key name, and the open question is whether the api _should_ reject
   unknown fields so that the next one of these fails loudly instead of writing half a
   row.
 - **Two identical legacy tests** (`changeRepeatDay` and `removeFirstRepeatShowDay` differ
@@ -308,14 +309,14 @@ because two implementations agreeing only proves they are wrong together, and th
 datasets are the only statement of intent in the triangle. That leg is what found the
 missing cascades.
 
-| harness | what it compares |
-| --- | --- |
-| `tools/rabbitmq-equivalence` | every message published, byte for byte |
-| `tools/schedule-equivalence` | a full populate run: instances, blocks, schedule rows |
-| `tools/criteria-equivalence` | compiled smart block criteria → SQL conditions |
-| `tools/playlist-scheduler-equivalence` | playlist and block content placed into a show |
-| `tools/permission-equivalence` | 336 allow/deny decisions |
-| `tools/show-editor-equivalence` | the show editor's 20 scenarios across 6 tables |
+| harness                                | what it compares                                      |
+| -------------------------------------- | ----------------------------------------------------- |
+| `tools/rabbitmq-equivalence`           | every message published, byte for byte                |
+| `tools/schedule-equivalence`           | a full populate run: instances, blocks, schedule rows |
+| `tools/criteria-equivalence`           | compiled smart block criteria → SQL conditions        |
+| `tools/playlist-scheduler-equivalence` | playlist and block content placed into a show         |
+| `tools/permission-equivalence`         | 336 allow/deny decisions                              |
+| `tools/show-editor-equivalence`        | the show editor's 20 scenarios across 6 tables        |
 
 Each creates its own database from the live schema and drops it afterwards. Not
 optional: the show editor writes the global `shows_populated_until` preference, and a
@@ -332,7 +333,7 @@ populating shows.
 3. Run the php leg before writing python, and check it against upstream. If it disagrees,
    that is the finding, and it is written down before it is worked around.
 4. Port. Where php's behaviour is surprising and visible in a row, reproduce it and say
-   why in a comment. Where it is surprising and *harmful*, diverge, and put the divergence
+   why in a comment. Where it is surprising and _harmful_, diverge, and put the divergence
    in the harness ledger rather than letting it become a silent difference.
 5. Wire the endpoint last. The payload vocabulary is a design decision; the rows are a
    fact, and only the second one can be proved.
