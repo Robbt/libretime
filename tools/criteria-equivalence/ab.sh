@@ -41,13 +41,13 @@ if [ "$ab_mode" = "local" ]; then
     [ -f "$legacy_root/vendor/autoload.php" ] || {
         echo "legacy dependencies not installed: run make -C legacy vendor" >&2
         exit 1
-    }
+  }
 
     psql() {
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" \
             -p "$EQ_DB_PORT" -U "$EQ_DB_USER" -d "$EQ_DB_NAME" \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     # No md5 guard here, and that is not an omission: the guard below exists because
     # container mode mounts this checkout over an image whose vendor and application
@@ -58,23 +58,23 @@ if [ "$ab_mode" = "local" ]; then
         mkdir -p "$EQ_OUT/logs"
         timeout 300 env LEGACY_ROOT="$(cd "$legacy_root" && pwd)" \
             LIBRETIME_LOG_DIR="$EQ_OUT/logs" \
-            "$php" "$here/run-php.php" >"$out/php.txt"
+            "$php" "$here/run-php.php" > "$out/php.txt"
 
-        wc -l <"$out/php.txt" | xargs echo "blocks answered:"
-    }
+        wc -l < "$out/php.txt" | xargs echo "blocks answered:"
+  }
 
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py" \
-            >"$out/python.txt"
+      > "$out/python.txt"
 
-        wc -l <"$out/python.txt" | xargs echo "blocks answered:"
-    }
+        wc -l < "$out/python.txt" | xargs echo "blocks answered:"
+  }
 else
     psql() {
         timeout 120 docker exec -i "$db_container" psql -U libretime -d libretime \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     run_php() {
         # The legacy code is run from this checkout, mounted over the application
@@ -89,7 +89,7 @@ else
         # Reuse the configuration of the running legacy service, so both sides
         # resolve the station timezone and the database the same way.
         timeout 60 docker exec "$php_container" cat /etc/libretime/config.yml \
-            >"$out/legacy-config.yml"
+      > "$out/legacy-config.yml"
 
         timeout 300 docker run --rm --network libretime_default \
             -v "$app_dir:/var/www/html/application:ro" \
@@ -102,22 +102,22 @@ else
                     echo 'error: the legacy sources being run are not the ones under review' >&2
                     exit 1
                 fi
-                php /tools/run-php.php" >"$out/php.txt"
+                php /tools/run-php.php" > "$out/php.txt"
 
-        wc -l <"$out/php.txt" | xargs echo "blocks answered:"
-    }
+        wc -l < "$out/php.txt" | xargs echo "blocks answered:"
+  }
 
     run_py() {
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/run-py-criteria.py' \
-            <"$here/run-py.py"
+      < "$here/run-py.py"
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
             "$py_container" sh -c 'cd /srv/src/api && .venv/bin/python /tmp/run-py-criteria.py' \
-            >"$out/python.txt"
+      > "$out/python.txt"
 
-        wc -l <"$out/python.txt" | xargs echo "blocks answered:"
-    }
+        wc -l < "$out/python.txt" | xargs echo "blocks answered:"
+  }
 fi
 
 mkdir -p "$out"
