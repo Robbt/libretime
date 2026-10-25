@@ -21,13 +21,13 @@ if [ "${AB_MODE:-container}" = "local" ]; then
     dump() {
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" -p "$EQ_DB_PORT" \
             -U "$EQ_DB_USER" -d "$EQ_DB_NAME" -q -v ON_ERROR_STOP=1 \
-            -c "\copy ($1) to stdout with (format csv, header)" >"$out/$2"
-    }
+            -c "\copy ($1) to stdout with (format csv, header)" > "$out/$2"
+  }
 else
     dump() {
         timeout 120 docker exec "$db" psql -U libretime -d libretime -q -v ON_ERROR_STOP=1 \
-            -c "\copy ($1) to stdout with (format csv, header)" >"$out/$2"
-    }
+            -c "\copy ($1) to stdout with (format csv, header)" > "$out/$2"
+  }
 fi
 
 # last_scheduled and created hold the wall clock of whichever run wrote them.

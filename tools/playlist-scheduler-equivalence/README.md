@@ -12,6 +12,7 @@ tools/playlist-scheduler-equivalence/ab.sh            # both sides, then compare
 tools/playlist-scheduler-equivalence/ab.sh php        # legacy side only
 tools/playlist-scheduler-equivalence/ab.sh python     # python side only
 ```
+
 ### In CI
 
 Same scenario, no containers. `run.sh` sets `AB_MODE=local`, and
@@ -33,7 +34,6 @@ docker exec eq-pg psql -U postgres -c "CREATE USER libretime WITH PASSWORD 'libr
 EQ_DB_SUPER_PASSWORD=postgres tools/equivalence-run.sh tools/playlist-scheduler-equivalence
 ```
 
-
 The legacy side runs `Application_Model_ShowInstance::addPlaylistToShow()` - the
 call the autoplaylist poll makes - from **this checkout**, mounted over the
 application directory of the running image, because the image's own copy of the
@@ -41,23 +41,23 @@ legacy code can be years behind what is under review.
 
 ## The three cases
 
-| instance | what it pins down |
-| --- | --- |
-| 8001 | an empty instance: the first item starts when the instance starts, later items start one crossfade before the previous ends |
-| 8002 | an instance with content already scheduled: the appended playlist crosses into the last existing item |
-| 8003 | a stream and a file: the stream gets the hardcoded half-second fade the legacy `retrieveMediaFiles()` gives it, whatever the playlist row says |
-| 8004 | a **static block** in the playlist: its own rows, in position order |
-| 8005 | a **dynamic block** in the playlist: criteria, then the fill - the whole chain, compared to what the legacy service picks |
+| instance | what it pins down                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8001     | an empty instance: the first item starts when the instance starts, later items start one crossfade before the previous ends                    |
+| 8002     | an instance with content already scheduled: the appended playlist crosses into the last existing item                                          |
+| 8003     | a stream and a file: the stream gets the hardcoded half-second fade the legacy `retrieveMediaFiles()` gives it, whatever the playlist row says |
+| 8004     | a **static block** in the playlist: its own rows, in position order                                                                            |
+| 8005     | a **dynamic block** in the playlist: criteria, then the fill - the whole chain, compared to what the legacy service picks                      |
 
 `cc_show_instances.time_filled` is compared as well, which is what
 `updateScheduleStatus()` leaves behind after the insert.
 
 ## Not covered, and why
 
-* **The "show already started" branch**, which writes a filler row and starts at
+- **The "show already started" branch**, which writes a filler row and starts at
   `now`. Both sides would have to run at the same instant for its rows to be
   comparable; they run seconds apart. `test_scheduler.py` covers it instead.
-* **Randomly sorted dynamic blocks**, whose answer differs on every rebuild in
+- **Randomly sorted dynamic blocks**, whose answer differs on every rebuild in
   both services. The fixtures use an ordered block so the choice itself is
   comparable; the random shape is covered by property tests in `test_fill.py`.
 

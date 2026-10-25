@@ -45,13 +45,13 @@ if [ "$ab_mode" = "local" ]; then
     [ -f "$legacy_root/vendor/autoload.php" ] || {
         echo "legacy dependencies not installed: run make -C legacy vendor" >&2
         exit 1
-    }
+  }
 
     psql() {
         timeout 120 env PGPASSWORD="$EQ_DB_PASSWORD" psql -h "$EQ_DB_HOST" \
             -p "$EQ_DB_PORT" -U "$EQ_DB_USER" -d "$EQ_DB_NAME" \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     run_php() {
         # Runs this checkout's application code by construction — container mode has to
@@ -60,17 +60,17 @@ if [ "$ab_mode" = "local" ]; then
         timeout 300 env LEGACY_ROOT="$(cd "$legacy_root" && pwd)" \
             LIBRETIME_LOG_DIR="$EQ_OUT/logs" \
             "$php" "$here/run-php.php"
-    }
+  }
 
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py"
-    }
+  }
 else
     psql() {
         timeout 120 docker exec -i "$db_container" psql -U libretime -d libretime \
             -v ON_ERROR_STOP=1 -q "$@"
-    }
+  }
 
     run_php() {
         # The legacy code runs from this checkout, mounted over the image's
@@ -80,7 +80,7 @@ else
         app_dir="$(cd "$here/../../legacy/application" && pwd)"
 
         timeout 60 docker exec "$php_container" cat /etc/libretime/config.yml \
-            >"$out/legacy-config.yml"
+      > "$out/legacy-config.yml"
 
         timeout 300 docker run --rm --network libretime_default \
             -v "$app_dir:/var/www/html/application:ro" \
@@ -88,16 +88,16 @@ else
             -v "$out/legacy-config.yml:/etc/libretime/config.yml:ro" \
             -e LIBRETIME_CONFIG_FILEPATH=/etc/libretime/config.yml \
             "$legacy_image" php /tools/run-php.php
-    }
+  }
 
     run_py() {
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/run-py-schedule.py' \
-            <"$here/run-py.py"
+      < "$here/run-py.py"
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
             "$py_container" sh -c 'cd /srv/src/api && .venv/bin/python /tmp/run-py-schedule.py'
-    }
+  }
 fi
 
 mkdir -p "$out"
