@@ -51,6 +51,11 @@ WEEKDAY = {
 }
 
 
+# The signature deliberately mirrors datetime(), which takes the same seven values
+# positionally; callers below read as dates, and making the time keyword-only would have
+# meant rewriting forty call sites to satisfy a clarity rule that datetime() itself
+# breaks.
+# pylint: disable-next=too-many-positional-arguments
 def utc_moment(
     year: int,
     month: int,
@@ -340,4 +345,4 @@ def test_walls_are_compared_by_instant_not_by_wall_clock():
     assert berlin == tokyo
     assert berlin.wall != tokyo.wall
     assert earlier < berlin
-    assert not berlin < earlier
+    assert berlin >= earlier

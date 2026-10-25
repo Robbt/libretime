@@ -39,6 +39,11 @@ POPULATED_UNTIL = datetime(2026, 1, 1, tzinfo=timezone.utc)
 UTC = timezone.utc
 
 
+# The signature deliberately mirrors datetime(), which takes the same seven values
+# positionally; callers below read as dates, and making the time keyword-only would have
+# meant rewriting forty call sites to satisfy a clarity rule that datetime() itself
+# breaks.
+# pylint: disable-next=too-many-positional-arguments
 def utc_moment(
     year: int,
     month: int,

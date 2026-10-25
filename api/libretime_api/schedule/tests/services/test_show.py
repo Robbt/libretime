@@ -12,6 +12,12 @@ harness reads php's copy directly, this one is a test fixture and states what it
 needs to state.
 """
 
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
 # The db fixture is asked for its effect, not its value
 # pylint: disable=unused-argument
 from datetime import UTC, date, datetime, timedelta
@@ -35,6 +41,7 @@ from libretime_api.schedule.services.show import (
     ShowFormError,
     ShowInstanceInThePast,
     ShowInstanceNotFound,
+    delete_show_instance,
     edit_repeating_instance,
     extend_show_instances,
     format_duration,
@@ -408,7 +415,7 @@ def test_a_refused_save_leaves_nothing_behind(db, monkeypatch):
     assert Show.objects.exists() is False
     assert ShowDays.objects.exists() is False
     assert ShowInstance.objects.exists() is False
-    assert notified == []
+    assert not notified, notified
 
 
 def test_playout_is_told_once_the_show_exists(db, monkeypatch):
@@ -428,8 +435,6 @@ def test_playout_is_told_once_the_show_exists(db, monkeypatch):
 
 
 def delete(instance_id, **kwargs):
-    from libretime_api.schedule.services.show import delete_show_instance
-
     return delete_show_instance(instance_id, now=NOW, **kwargs)
 
 

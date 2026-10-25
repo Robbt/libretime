@@ -1,3 +1,8 @@
+# The field and serializer classes here validate input; none of them writes a model,
+# which is precisely what BaseSerializer declares abstract create/update for.
+# ModelSerializer implements them, a plain Serializer does not, and pylint cannot tell a
+# validation-only class from a half-finished one.
+# pylint: disable=abstract-method
 import re
 from datetime import date, timedelta
 
@@ -197,7 +202,12 @@ class WeekDaysField(serializers.Field):
         "empty": "A repeating show needs at least one day of the week.",
     }
 
-    def to_internal_value(self, value):
+    def to_internal_value(self, data):
+        # The parameter name is part of the base class's signature — pylint checks that
+        # overriding methods keep it, and DRF calls them positionally — so the local
+        # alias is what lets the body keep saying `value`.
+        value = data
+
         if isinstance(value, (str, int, float)):
             value = [value]
 
@@ -242,8 +252,8 @@ class DurationField(serializers.Field):
 
     default_error_messages = {"invalid": 'Not a duration. Use "1:30" or "01h 30m".'}
 
-    def to_internal_value(self, value):
-        parsed = parse_duration_text(value)
+    def to_internal_value(self, data):
+        parsed = parse_duration_text(data)
 
         if parsed is None or parsed == (0, 0):
             self.fail("invalid")
@@ -324,7 +334,11 @@ class ShowCreateSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         return super().to_internal_value(from_legacy_payload(data))
 
-    def validate(self, show):
+    def validate(self, attrs):
+        # `attrs` is the name Serializer.validate gives the mapping; by the time it
+        # reaches here it is a whole show, which is how the checks below read.
+        show = attrs
+
         if show["repeats"] != "none" and not show.get("week_days"):
             raise serializers.ValidationError(
                 {

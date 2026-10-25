@@ -7,8 +7,6 @@ ineffective — or a settings change that drops it — fails here rather than in
 integration test.
 """
 
-# Each test below asks for the database through the marker rather than for its value.
-# pylint: disable=unused-argument
 import copy
 from functools import cache
 from typing import Any

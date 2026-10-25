@@ -475,7 +475,7 @@ def test_playout_is_told_about_a_show_only_once_it_exists(monkeypatch):
 
     client.post("/api/v2/shows", friday_show(timezone="Not/AZone"), format="json")
 
-    assert notified == []
+    assert not notified, notified
 
     client.post("/api/v2/shows", friday_show(), format="json")
 

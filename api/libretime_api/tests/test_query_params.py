@@ -11,6 +11,12 @@ running system - which is why the last test in this file checks the shape of eve
 collection rather than checking the new features.
 """
 
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
 # The db and api_client fixtures are asked for their effect, not their values.
 # pylint: disable=unused-argument
 from datetime import timedelta

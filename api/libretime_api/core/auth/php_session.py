@@ -101,6 +101,11 @@ class PhpSessionAuthentication(BaseAuthentication):
     when it also presents that session's CSRF token.
     """
 
+    # Every early return here is a different reason the cookie is not this class's
+    # business, and each has to be answered differently (None means "try the next
+    # authenticator", a rejection means "this one was offered and is wrong"). Merging
+    # them into a chain of flags would make an authentication bug out of a style rule.
+    # pylint: disable-next=too-many-return-statements
     def authenticate(self, request: Request) -> tuple[User, Any] | None:
         # A request that names itself in the Authorization header is not talking to
         # this class, even when it also carries a session cookie - and it is talking
@@ -204,6 +209,10 @@ class PhpSessionAuthentication(BaseAuthentication):
         return record.updated_at + record.lifetime >= int(timezone.now().timestamp())
 
 
+# Each return is a different reason the payload does not name a logged-in user, and the
+# distinction is the point of the function: "no session" and "session without an
+# identity" are answered differently by the caller.
+# pylint: disable-next=too-many-return-statements
 def identity(payload: str | None) -> str | None:
     """
     The login of the user a session belongs to, ``None`` when nobody is logged in.

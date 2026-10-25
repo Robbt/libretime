@@ -7,6 +7,9 @@ itself and the rules around it are in :mod:`libretime_api.core.auth.php_session`
 and :mod:`libretime_api.core.auth.session_store`.
 """
 
+# These serializers describe and validate request bodies. Nothing is created or updated
+# through them, so BaseSerializer's abstract create/update are deliberately absent.
+# pylint: disable=abstract-method
 from __future__ import annotations
 
 from django.db.models import F, Value

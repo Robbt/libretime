@@ -91,6 +91,10 @@ class _Reader:
 
     # -- values -------------------------------------------------------------
 
+    # One branch per php type marker, because that is the shape of the format: a value
+    # is dispatched on the character that introduces it. Folding the returns into a
+    # lookup table would hide the ordering the grammar depends on.
+    # pylint: disable-next=too-many-return-statements
     def _value(self) -> object:
         """
         Read one value.
@@ -238,6 +242,9 @@ def dumps(value: Any) -> str:
     return "".join(_encode(value))
 
 
+# Same reason as _value: the order these cases are tested in is the order php's own
+# serializer distinguishes them in, and True is an int in python but not in php.
+# pylint: disable-next=too-many-return-statements
 def _encode(value: Any) -> Iterator[str]:
     # None and bool before the numbers they resemble: in python True is an int,
     # and in php false is not null.

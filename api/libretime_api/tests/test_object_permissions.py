@@ -23,6 +23,12 @@ The rules themselves, in the words of the legacy code that decides them:
 - a guest changes nothing anywhere.
 """
 
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
 # The station fixture asks for db for its effect, not its value, and the
 # parametrised ids are the readable part of a failure report
 # pylint: disable=unused-argument,invalid-name

@@ -7,6 +7,13 @@ services only agree by convention: the analyzer reads ``tmp_file_path``,
 ``import_directory``, ``original_filename``, ``file_id`` and ``options``.
 """
 
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
+import hashlib
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -15,6 +22,7 @@ import pytest
 # The fixtures below are asked for their effect - storage isolation, and catching a
 # publish that should not have happened - not for their value
 # pylint: disable=unused-argument
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
@@ -70,8 +78,6 @@ def upload_as(user, *, name="song.mp3", content=None, data=None, client=None):
     client = client or APIClient()
 
     if user is None:
-        from django.conf import settings
-
         client.credentials(
             HTTP_AUTHORIZATION=f"Api-Key {settings.CONFIG.general.api_key}"
         )
@@ -118,8 +124,6 @@ def test_a_host_uploads_and_owns_the_result(storage, published):
     assert file.size == FIXTURE.stat().st_size
     # The checksum is of the bytes that arrived, which is how the analyzer later
     # notices a duplicate of something already in the library.
-    import hashlib
-
     assert file.md5 == hashlib.md5(FIXTURE.read_bytes()).hexdigest()
 
 

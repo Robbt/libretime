@@ -33,7 +33,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from enum import IntEnum
-from typing import Iterable
 
 from django.db import connection, models, transaction
 from django.db.models import Q, Sum
@@ -497,7 +496,7 @@ class InstanceBuilder:
         now = Wall.from_instant(self.now, UTC)
 
         for rebroadcast in rebroadcasts:
-            days = int(str(rebroadcast.day_offset).split(" ")[0] or 0)
+            days = int(str(rebroadcast.day_offset).split(" ", maxsplit=1)[0] or 0)
             offset = (days, rebroadcast.start_time.hour, rebroadcast.start_time.minute)
             start, finish = utc_start_end(show_start, day.duration, offset=offset)
 

@@ -8,14 +8,21 @@ which is what the legacy application never does: a playlist is made with
 ``creator_id`` set to the logged in user.
 """
 
-# The db fixtures are asked for their effect, not their value
-# pylint: disable=unused-argument
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
 import pytest
+from django.apps import apps
+from django.conf import settings
 from model_bakery import baker
 from rest_framework.test import APIClient
 
 from ..core.models import Role, User
 from ..permissions import may_act
+from ..schedule.models import Playlist
 
 
 def make_user(role: Role, username: str) -> User:
@@ -48,7 +55,6 @@ def client_as(user: User | None) -> APIClient:
     client = APIClient()
 
     if user is None:
-        from django.conf import settings
 
         client.credentials(
             HTTP_AUTHORIZATION=f"Api-Key {settings.CONFIG.general.api_key}"
@@ -80,7 +86,6 @@ class TestStampedOwner:
 
     def test_every_creation_names_its_author(self, host):
         """Each kind of thing a host may make, and the row it leaves behind."""
-        from django.apps import apps
 
         client = client_as(host)
 
@@ -116,8 +121,6 @@ class TestStampedOwner:
 
         assert response.status_code == 201, response.data
 
-        from ..schedule.models import Playlist
-
         assert Playlist.objects.get(pk=response.json()["id"]).owner == host
 
     def test_a_service_call_is_not_attributed_to_a_person(self, db):
@@ -130,8 +133,6 @@ class TestStampedOwner:
         )
 
         assert response.status_code == 201, response.data
-
-        from ..schedule.models import Playlist
 
         assert Playlist.objects.get(pk=response.json()["id"]).owner is None
 

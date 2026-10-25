@@ -6,11 +6,19 @@ installation after logging in through the legacy UI, so they describe what the
 bridge has to read rather than what it would like to read.
 """
 
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
 import time
 
 import pytest
 from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.request import Request
 from rest_framework.test import APIClient, APIRequestFactory
 
 from ....core.auth import (
@@ -481,9 +489,6 @@ def _drf_request(method: str, session_id: str | None, data=None, **extra):
     have to be named here: reading a multipart body without them raises rather
     than parses, and the test would be testing its own scaffolding.
     """
-    from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-    from rest_framework.request import Request
-
     factory = APIRequestFactory()
     handler = getattr(factory, method)
 

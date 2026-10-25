@@ -27,6 +27,12 @@ where it happens:
   change.
 """
 
+# Port of legacy/application/services/ShowService.php, kept in one module so that a
+# reviewer can read it side by side with the php it replaces. The 1000-line default
+# measures files that grew without anyone deciding; this one is long because the service
+# it mirrors is long, and what pins its behaviour is tools/show-editor-equivalence.
+# pylint: disable=too-many-lines
+
 from __future__ import annotations
 
 import logging
@@ -35,14 +41,16 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from django.utils import timezone
 
 from ...core.models import Preference
 from ...notify.playout import update_schedule
+from ...storage.models import File
 from ..models import Schedule, Show, ShowDays, ShowHost, ShowInstance, ShowRebroadcast
 from .populate import (
     NO_REPEAT,
+    REPEAT_MONTHLY_MONTHLY,
     InstanceBuilder,
     PreferenceStore,
     fill_linked_instances,
@@ -72,6 +80,10 @@ class Rebroadcast:
 
 @dataclass(frozen=True)
 class ShowForm:
+    # One attribute per value the show editor posts, because the port's job is to read
+    # that payload and nothing else; splitting these into groups would move the reader
+    # further from the php the equivalence harness compares against.
+    # pylint: disable=too-many-instance-attributes
     """
     A show as the editor describes it.
 
@@ -1074,10 +1086,6 @@ def _unmark_files_no_longer_scheduled(now: datetime) -> None:
     future are cleared, which is why this is a set difference rather than a blanket
     update: a file in another show tomorrow is still scheduled.
     """
-    # Imported here: storage is a different app, and this is the one place the show
-    # editor reaches into it.
-    from ...storage.models import File  # noqa: PLC0415
-
     still_scheduled = set(
         Schedule.objects.filter(ends_at__gt=now)
         .exclude(file=None)
@@ -1259,10 +1267,10 @@ def _cleanup_instances(
             # place, so the show starts again from here.
             _delete_all_instances(show, now)
 
-        if current.repeat_kind != NO_REPEAT and form.repeat_kind != current.repeat_kind:
+        if current.repeat_kind not in (NO_REPEAT, form.repeat_kind):
             _delete_all_instances(show, now)
             _delete_all_rules(show)
-        elif current.repeat_kind != 2:
+        elif current.repeat_kind != REPEAT_MONTHLY_MONTHLY:
             # Monthly-on-a-date rules carry no weekday, so there is nothing to
             # compare: a weekday can only have changed on a rule that has one.
             existing_days = [row.week_day for row in repeating_rules]
@@ -1324,8 +1332,6 @@ def _local_start(rule: ShowDays) -> datetime:
 
 
 def _sql(statement: str, params: Mapping[str, Any]) -> None:
-    from django.db import connection  # noqa: PLC0415
-
     connection.cursor().execute(statement, params)
 
 
@@ -1588,7 +1594,7 @@ def _update_schedule_status(instance: ShowInstance, *, now: datetime) -> None:
     ]
 
     ends_at = to_instant(instance.ends_at)
-    inside = dict(instance_id=instance.pk, position_status__gte=0)
+    inside = {"instance_id": instance.pk, "position_status__gte": 0}
 
     Schedule.objects.filter(**inside, ends_at__lte=ends_at).update(position_status=1)
     Schedule.objects.filter(

@@ -7,6 +7,12 @@ legacy application stops seeing a logged in user, and the first sign would be a
 station whose screens bounce to a login page.
 """
 
+# A test that takes a fixture rebinds the fixture function's name as its own parameter:
+# that is how pytest injects, and no spelling of it satisfies pylint's shadowing check.
+# The database fixtures are likewise requested for their effect, not their value.
+# pylint: disable=redefined-outer-name,unused-argument
+
+
 import time
 from datetime import UTC, datetime
 

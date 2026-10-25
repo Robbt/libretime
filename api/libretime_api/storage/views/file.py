@@ -11,14 +11,12 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 
 from ...filters import QUERY_BACKENDS
+from ...ownership import StampsOwner
 from ...schedule.models import Schedule
 from ..models import File
 from ..serializers import FileSerializer
 
 logger = logging.getLogger(__name__)
-
-
-from ...ownership import StampsOwner
 
 
 class FileInUse(APIException):
