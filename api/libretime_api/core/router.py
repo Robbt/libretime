@@ -4,6 +4,8 @@ from rest_framework import routers
 from .views import (
     CsrfTokenView,
     InfoView,
+    SessionPermissionsView,
+    SessionView,
     LoginAttemptViewSet,
     PreferenceViewSet,
     ServiceRegisterViewSet,
@@ -24,7 +26,9 @@ router.register("user-tokens", UserTokenViewSet)
 urls = [
     *router.urls,
     path("info", InfoView.as_view()),
+    path("session", SessionView.as_view()),
     path("session/csrf-token", CsrfTokenView.as_view()),
+    path("session/permissions", SessionPermissionsView.as_view()),
     path("version", VersionView.as_view()),
     path("stream/preferences", StreamPreferencesView.as_view()),
     path("stream/state", StreamStateView.as_view()),

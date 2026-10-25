@@ -50,6 +50,10 @@ class User(AbstractBaseUser):
     last_name = models.CharField(max_length=255)
 
     login_attempts = models.IntegerField(
+        # Rows created by this code used to leave the column empty, and an empty
+        # count counts as nothing when it is added to. Nullable stays, because
+        # rows written by php years ago are still out there holding NULL.
+        default=0,
         blank=True,
         null=True,
         db_column="login_attempts",

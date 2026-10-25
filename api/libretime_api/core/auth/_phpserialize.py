@@ -14,12 +14,40 @@ another user's identity.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import Any
+
 # Zend_Auth stores the identity as a stdClass; nothing else is expected.
 SUPPORTED_CLASSES = (b"stdClass",)
 
 
 class PhpDecodeError(ValueError):
     """The payload is not PHP serialization this reader understands."""
+
+
+class PhpEncodeError(ValueError):
+    """The value has no php serialization this writer can produce faithfully."""
+
+
+class PhpObject(dict):
+    """
+    A php object rather than a php array.
+
+    php distinguishes ``stdClass`` from an array and so does the wire format,
+    while both look like a mapping to python. Anything read as an object comes
+    back from :func:`loads` as this class, so a payload that is decoded and
+    encoded again keeps the shape it arrived with.
+    """
+
+    def __init__(
+        self,
+        mapping: Mapping[Any, Any] | Iterable[tuple[Any, Any]] | None = None,
+        *,
+        php_class: str = "stdClass",
+    ) -> None:
+        super().__init__(mapping or {})
+        self.php_class = php_class
 
 
 class _Reader:
@@ -153,6 +181,11 @@ class _Reader:
 
         entries, numeric_keys = self._entries(count)
 
+        if not numeric_keys:
+            self._expect(b"}")
+
+            return PhpObject(entries, php_class=name.decode("latin-1"))
+
         return self._finish(entries, numeric_keys)
 
     def _entries(self, count: int) -> tuple[dict, list]:
@@ -191,3 +224,106 @@ def loads(payload: str) -> object:
         raise PhpDecodeError("empty session payload")
 
     return _Reader(payload.encode("utf-8")).read()
+
+
+def dumps(value: Any) -> str:
+    """
+    Encode a value the way PHP's ``serialize()`` would.
+
+    Only what a LibreTime session holds: null, booleans, integers, strings,
+    arrays and stdClass. A value outside that has no faithful encoding here, and
+    inventing one - a date as an integer, an object as an array - would write a
+    session the legacy application reads differently from the one the api meant.
+    """
+    return "".join(_encode(value))
+
+
+def _encode(value: Any) -> Iterator[str]:
+    # None and bool before the numbers they resemble: in python True is an int,
+    # and in php false is not null.
+    if value is None:
+        yield "N;"
+        return
+
+    if isinstance(value, bool):
+        yield f"b:{1 if value else 0};"
+        return
+
+    if isinstance(value, int):
+        yield f"i:{value};"
+        return
+
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise PhpEncodeError(f"php would write {value} as a word, not a number")
+
+        # php writes a float with at most 14 significant digits and no trailing
+        # fraction, so 2.0 becomes "2" and 1.5 stays "1.5". Anything that needs an
+        # exponent it spells differently ("d:1.0E-6"), so stop rather than write a
+        # number the legacy application would read back as something else.
+        text = f"{value:.14g}"
+        if "e" in text or "E" in text:
+            raise PhpEncodeError(f"cannot write {value!r} the way php does")
+
+        yield f"d:{text};"
+        return
+
+    if isinstance(value, str):
+        # The length prefix counts bytes, which is why a multi-byte character
+        # has to be measured in utf-8 and not len().
+        yield f's:{len(value.encode("utf-8"))}:"{value}";'
+        return
+
+    if isinstance(value, PhpObject):
+        yield from _encode_object(value)
+        return
+
+    if isinstance(value, Mapping):
+        yield from _encode_entries(value.items(), count=len(value), kind="a")
+        return
+
+    if isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray, tuple)
+    ):
+        # str and bytes are sequences of things nobody means as a php array. A
+        # tuple is refused rather than quietly turned into one.
+        yield from _encode_entries(enumerate(value), count=len(value), kind="a")
+        return
+
+    raise PhpEncodeError(f"cannot write {type(value).__name__} to a php session")
+
+
+def _encode_object(value: PhpObject) -> Iterator[str]:
+    name = value.php_class.encode("utf-8")
+
+    yield f'O:{len(name)}:"{value.php_class}":{len(value)}:{{'
+
+    for key, item in value.items():
+        yield from _encode_key(key)
+        yield from _encode(item)
+
+    yield "}"
+
+
+def _encode_entries(items, *, count: int, kind: str) -> Iterator[str]:
+    yield f"{kind}:{count}:{{"
+
+    for key, item in items:
+        yield from _encode_key(key)
+        yield from _encode(item)
+
+    yield "}"
+
+
+def _encode_key(key: Any) -> Iterator[str]:
+    if isinstance(key, str):
+        yield from _encode(key)
+        return
+
+    if isinstance(key, int) and not isinstance(key, bool):
+        yield f"i:{key};"
+        return
+
+    raise PhpEncodeError(
+        f"php array keys are strings or integers, not {type(key).__name__}"
+    )

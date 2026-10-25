@@ -19,11 +19,48 @@ the config file can mint requests for any user.
 
 ## Legacy session
 
-A browser that logged in to the station carries a `PHPSESSID` cookie, and the
-legacy service keeps its sessions in the `sessions` table of the same Postgres
-database. The API reads that row, decodes the identity the legacy
-`Zend_Auth` storage wrote into it, and authenticates the request as the matching
-user - no second login, and no copy of any credential.
+A browser that is logged in to the station carries a `PHPSESSID` cookie, and the
+sessions live in the `sessions` table of the Postgres database both applications
+share. The API reads that row, decodes the identity the legacy `Zend_Auth`
+storage wrote into it, and authenticates the request as the matching user - no
+second login, and no copy of any credential.
+
+## Signing in
+
+`POST /api/v2/session` with json credentials opens that same kind of session:
+
+```
+POST /api/v2/session  {"username": "...", "password": "..."}
+     -> 200  Set-Cookie: PHPSESSID=…; HttpOnly; Max-Age=1440; Path=/; SameSite=Lax
+     -> {"id": 5, "username": "…", "role": "A", "csrf_token": "…"}
+```
+
+The cookie is scoped to `/` on purpose: a session started by the API is a session
+of the station, and the legacy screens behind nginx read the same row and let the
+user through. Logging out (`DELETE /api/v2/session`) clears that row the way the
+legacy logout does - identity gone, csrf namespace dropped, row left for the
+garbage collector - and the legacy screens bounce to the login page again
+immediately. One login, one logout, whichever door was used.
+
+`GET /api/v2/session` answers who the caller is, and
+`GET /api/v2/session/permissions` answers what the caller's role may do, in the
+same permission names the API checks requests against - which is what an
+interface needs to draw its own menus.
+
+Two details that are security rather than taste:
+
+- **json only.** A login form on another site can post a form body to this URL
+  using the visitor's browser; it cannot post json. Accepting nothing else is what
+  makes a cross-site login attempt impossible rather than merely unusual.
+- **a fresh session id every time**, with the previous one logged out. The legacy
+  login regenerates its id for the same reason: an id that existed before the
+  password was proved must not survive the proof, and two live sessions for one
+  person means a logout that does not log out.
+
+Failed logins increment `cc_subjs.login_attempts` and `cc_login_attempts` exactly
+as the legacy form does. Neither counter blocks anything today, in php or here -
+they are recorded for whoever is watching the station - and a wrong username and a
+wrong password get the same answer, so the endpoint is not a way to list accounts.
 
 Reads need nothing else. A request that **changes** something also has to present
 the CSRF token its own session holds, because a cookie proves which user the
