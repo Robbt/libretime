@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare the file lists the two criteria compilers returned.
 
-    compare.py <php-file> <python-file>
+    compare_criteria.py <php-file> <python-file>
 
 Each file holds "<block id>|<comma separated file ids>" lines, in the order the
 compiler produced them - the order is part of the answer, because a smart block
