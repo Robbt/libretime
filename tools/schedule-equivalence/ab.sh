@@ -86,7 +86,7 @@ if [ "$ab_mode" = "local" ]; then
         # django.setup() resolves libretime_api relative to the working directory, the
         # same way manage.py does.
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod AB_UNTIL="$until" \
-            sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py"
+            sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run_python_schedule.py"
   }
 else
     psql() {
@@ -100,12 +100,12 @@ else
   }
 
     run_py() {
-        docker cp "$here/run-py.py" "$py_container:/tmp/run-py.py" > /dev/null
+        docker cp "$here/run_python_schedule.py" "$py_container:/tmp/run_python_schedule.py" > /dev/null
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
             -e AB_UNTIL="$until" \
-            "$py_container" sh -c 'cd /srv/src/api && .venv/bin/python /tmp/run-py.py'
+            "$py_container" sh -c 'cd /srv/src/api && .venv/bin/python /tmp/run_python_schedule.py'
   }
 fi
 
@@ -148,5 +148,5 @@ seed
 
 if [[ "$mode" == "all" ]]; then
     step "compare"
-    "${EQ_PY:-python3}" "$here/compare.py" "$out/php" "$out/python"
+    "${EQ_PY:-python3}" "$here/compare_schedule.py" "$out/php" "$out/python"
 fi

@@ -65,7 +65,7 @@ if [ "$ab_mode" = "local" ]; then
 
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
-            sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py" \
+            sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run_python_criteria.py" \
       > "$out/python.txt"
 
         wc -l < "$out/python.txt" | xargs echo "blocks answered:"
@@ -109,7 +109,7 @@ else
 
     run_py() {
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/run-py-criteria.py' \
-      < "$here/run-py.py"
+      < "$here/run_python_criteria.py"
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
@@ -142,5 +142,5 @@ fi
 
 if [[ "$mode" == "all" ]]; then
     step "compare"
-    "$py" "$here/compare.py" "$out/php.txt" "$out/python.txt"
+    "$py" "$here/compare_criteria.py" "$out/php.txt" "$out/python.txt"
 fi

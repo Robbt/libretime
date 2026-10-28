@@ -64,7 +64,7 @@ if [ "$ab_mode" = "local" ]; then
 
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
-            sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py"
+            sh -c 'cd "$1" && "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run_python_playlist_scheduler.py"
   }
 else
     psql() {
@@ -92,7 +92,7 @@ else
 
     run_py() {
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/run-py-schedule.py' \
-      < "$here/run-py.py"
+      < "$here/run_python_playlist_scheduler.py"
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml \
@@ -126,5 +126,5 @@ fi
 
 if [[ "$mode" == "all" ]]; then
     step "compare"
-    "$py" "$here/compare.py" "$out/php" "$out/python"
+    "$py" "$here/compare_playlist_scheduler.py" "$out/php" "$out/python"
 fi

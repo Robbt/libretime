@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare the rows the legacy builder and the Python one wrote.
 
-    compare.py <php-dir> <python-dir>
+    compare_playlist_scheduler.py <php-dir> <python-dir>
 
 Times are compared as written, including their microseconds: the legacy insert
 formats them with DEFAULT_MICROTIME_FORMAT and the port keeps the same

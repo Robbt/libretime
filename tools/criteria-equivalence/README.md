@@ -42,8 +42,8 @@ Steps, each bounded by a timeout and printed:
    legacy compiler.
 2. `run-php.php` - the legacy compiler over every fixture block.
 3. `seed.sql` again, so both sides see identical rows.
-4. `run-py.py` - the Python compiler over the same blocks.
-5. `compare.py` - line by line, `<block id>|<file ids in order>`.
+4. `run_python_criteria.py` - the Python compiler over the same blocks.
+5. `compare_criteria.py` - line by line, `<block id>|<file ids in order>`.
 
 When a block differs, both answers are printed in full.
 
