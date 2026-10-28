@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Dump the rows the builders produced, as CSV, for compare.py.
+# Dump the rows the builders produced, as CSV, for compare_schedule.py.
 #
 #   dump.sh <side>
 #

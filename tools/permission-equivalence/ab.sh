@@ -49,7 +49,7 @@ if [ "$ab_mode" = "local" ]; then
   }
 
     # Both sides read cases.txt out of this directory. Container mode has to copy it to
-    # /tools because it copies the script to /tmp as well, which is why run-py.py takes
+    # /tools because it copies the script to /tmp as well, which is why run_python_permission.py takes
     # the directory from AB_FIXTURES; php resolves it against __DIR__ and needs nothing.
     run_php() {
         mkdir -p "$EQ_OUT/logs"
@@ -63,7 +63,7 @@ if [ "$ab_mode" = "local" ]; then
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             AB_FIXTURES="$here" \
-            sh -c 'cd "$1" && timeout 240 "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py" \
+            sh -c 'cd "$1" && timeout 240 "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run_python_permission.py" \
       > "$out/python"
 
         wc -l < "$out/python" | xargs echo "  verdicts:"
@@ -98,7 +98,7 @@ else
 
     run_py() {
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/run-py-permissions.py' \
-      < "$here/run-py.py"
+      < "$here/run_python_permission.py"
         # The same cases.txt path as on the php side, so the two cannot disagree
         # about what was covered.
         timeout 30 docker exec "$py_container" mkdir -p /tools
@@ -134,7 +134,7 @@ fi
 
 if [[ "$mode" == "all" ]]; then
     step "compare"
-    "$py" "$here/compare.py" "$out/php" "$out/python"
+    "$py" "$here/compare_permission.py" "$out/php" "$out/python"
 fi
 
 step "clean up fixtures"

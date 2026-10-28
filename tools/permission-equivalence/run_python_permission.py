@@ -139,7 +139,7 @@ def main() -> int:
             verdict = "allow" if allowed else "deny"
         except Exception as error:  # noqa: BLE001
             # A role the api cannot look up is a finding, not a reason to stop
-            # the run: report it as its own verdict and let compare.py show it.
+            # the run: report it as its own verdict and let compare_permission.py show it.
             allowed, why = None, f"{type(error).__name__}: {error}"
             verdict = "error"
 

@@ -8,8 +8,8 @@ on. Differences are reported per row and per column, because "the weekly scenari
 differs" is not an actionable sentence; "cc_show_instances id=4 ends: php
 2044-01-22 01:00:00, port 2044-01-22 00:59:59" is.
 
-    compare.py out/php out/python     the port against the legacy service
-    compare.py --spec out/php         the legacy run against upstream's expectation
+    compare_show_editor.py out/php out/python     the port against the legacy service
+    compare_show_editor.py --spec out/php         the legacy run against upstream's expectation
 
 The second one is the check that the harness itself is honest: the files under
 legacy/tests/application/services/database/datasets/ are what the project says the

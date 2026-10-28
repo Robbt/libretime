@@ -34,7 +34,7 @@
 # upgrades never added their foreign key, so on a station cc_show_days.show_id and
 # cc_schedule.instance_id have none, and the installer schema cascades
 # cc_show_instances.show_id. The port deletes its children explicitly and is therefore
-# correct under both; compare.py's ledger is one-directional (a documented difference
+# correct under both; compare_show_editor.py's ledger is one-directional (a documented difference
 # that does not occur is not a failure), so neither environment is wrong here.
 set -euo pipefail
 
@@ -99,7 +99,7 @@ if [ "$ab_mode" = "local" ]; then
     run_py() {
         timeout 300 env DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             AB_FIXTURES="$here" \
-            sh -c 'cd "$1" && timeout 240 "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run-py.py" \
+            sh -c 'cd "$1" && timeout 240 "$2" "$3"' _ "$(cd "$api_root" && pwd)" "$py" "$here/run_python_show_editor.py" \
       > "$out/python"
   }
 else
@@ -181,7 +181,7 @@ PY
   }
 
     run_py() {
-        for f in run-py.py scenarios.json clean.sql seed.sql; do
+        for f in run_python_show_editor.py scenarios.json clean.sql seed.sql; do
             timeout 60 docker exec -i "$py_container" sh -c "cat > /tools/$f" < "$here/$f"
     done
         timeout 60 docker exec -i "$py_container" sh -c 'cat > /tmp/ab-harness-config.yml' < "$out/api-config.yml"
@@ -189,7 +189,7 @@ PY
         timeout 300 docker exec \
             -e DJANGO_SETTINGS_MODULE=libretime_api.settings.prod \
             -e LIBRETIME_CONFIG_FILEPATH=/tmp/ab-harness-config.yml \
-            "$py_container" sh -c "cd /srv/src/api && timeout 240 .venv/bin/python /tools/run-py.py" \
+            "$py_container" sh -c "cd /srv/src/api && timeout 240 .venv/bin/python /tools/run_python_show_editor.py" \
       > "$out/python"
   }
 fi
@@ -206,14 +206,14 @@ fi
 if [[ "$mode" == "spec" ]]; then
     step "compare against the datasets committed upstream"
     status=0
-    "$py" "$here/compare.py" --spec "$out/php" || status=$?
+    "$py" "$here/compare_show_editor.py" --spec "$out/php" || status=$?
     drop_database
     exit "$status"
 fi
 
 if [[ "$mode" == "all" || "$mode" == "python" ]]; then
-    if [[ ! -f "$here/run-py.py" ]]; then
-        echo "no python side yet: run-py.py lands with the show editor port." >&2
+    if [[ ! -f "$here/run_python_show_editor.py" ]]; then
+        echo "no python side yet: run_python_show_editor.py lands with the show editor port." >&2
         echo "Until then use: ./ab.sh php   or   ./ab.sh spec" >&2
         exit 3
   fi
@@ -227,11 +227,11 @@ fi
 if [[ "$mode" == "all" ]]; then
     step "compare the two runs"
     status=0
-    "$py" "$here/compare.py" "$out/php" "$out/python" || status=$?
+    "$py" "$here/compare_show_editor.py" "$out/php" "$out/python" || status=$?
 
     step "compare the legacy run against the upstream datasets"
     spec_status=0
-    "$py" "$here/compare.py" --spec "$out/php" || spec_status=$?
+    "$py" "$here/compare_show_editor.py" --spec "$out/php" || spec_status=$?
 
     drop_database
 

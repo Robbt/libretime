@@ -47,7 +47,7 @@ check:
 | that, or a host of the show the row belongs to                | schedule row (content placed in a show instance)                                                       | `User.php:59` `canSchedule`, `Scheduler.php:146`, `CcSubjs::isHostOfShowInstance`                                                            |
 | admin or program manager **without** superadmin, or the owner | webstream                                                                                              | `Webstream.php:97`                                                                                                                           |
 
-The api side (`run-py.py`) asks `IsSystemTokenOrUser.has_permission` and
+The api side (`run_python_permission.py`) asks `IsSystemTokenOrUser.has_permission` and
 `has_object_permission` with the real viewsets, the real `GROUPS` role lists and
 the real `get_owner()` implementations.
 
@@ -57,7 +57,7 @@ the real `get_owner()` implementations.
 checks `isUserType([UTYPE_ADMIN, UTYPE_PROGRAM_MANAGER])` while every sibling
 checks `[UTYPE_SUPERADMIN, UTYPE_ADMIN, UTYPE_PROGRAM_MANAGER]`. A superadmin is
 therefore not an admin there, and can only delete webstreams they created. It
-reads as a copy-paste slip rather than a decision, and `compare.py` lists it as an
+reads as a copy-paste slip rather than a decision, and `compare_permission.py` lists it as an
 expected difference so the harness stays green while the api treats a superadmin
 as an admin everywhere.
 

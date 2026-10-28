@@ -49,20 +49,20 @@ comparison below it is comparing the wrong behaviour.
 
 ## Pieces
 
-| file                 | role                                                                                                                                                                                                                                               |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dump-scenarios.php` | prints `scenarios.json` from `ShowServiceData`, php's own payload fixtures, plus the per-scenario overrides and call sequence transcribed from the unit test — the part worth reviewing, because it is the only hand-written link to the test file |
-| `scenarios.json`     | what that produced; both sides read it, so they cannot disagree about what was covered                                                                                                                                                             |
-| `seed.sql`           | the fixture state of `seed_show_service.yml`: two preferences                                                                                                                                                                                      |
-| `clean.sql`          | empties the database and restarts the sequences                                                                                                                                                                                                    |
-| `run-php.php`        | runs each scenario through the legacy service and dumps the six tables it writes                                                                                                                                                                   |
-| `run-py.py`          | the same through the python port, including the same seed inserts                                                                                                                                                                                  |
-| `compare.py`         | row and column level diffing, in two modes                                                                                                                                                                                                         |
+| file                        | role                                                                                                                                                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dump-scenarios.php`        | prints `scenarios.json` from `ShowServiceData`, php's own payload fixtures, plus the per-scenario overrides and call sequence transcribed from the unit test — the part worth reviewing, because it is the only hand-written link to the test file |
+| `scenarios.json`            | what that produced; both sides read it, so they cannot disagree about what was covered                                                                                                                                                             |
+| `seed.sql`                  | the fixture state of `seed_show_service.yml`: two preferences                                                                                                                                                                                      |
+| `clean.sql`                 | empties the database and restarts the sequences                                                                                                                                                                                                    |
+| `run-php.php`               | runs each scenario through the legacy service and dumps the six tables it writes                                                                                                                                                                   |
+| `run_python_show_editor.py` | the same through the python port, including the same seed inserts                                                                                                                                                                                  |
+| `compare_show_editor.py`    | row and column level diffing, in two modes                                                                                                                                                                                                         |
 
 Rows are dumped as `to_jsonb(...)::text` by both sides rather than as column lists:
 `pdo_pgsql` returns a boolean as `"1"` or `""`, which turns "is the port correct"
 into "who guessed the column type right". Letting Postgres render the row removes
-that class of noise, and the two remaining normalizations in `compare.py` — a `T`
+that class of noise, and the two remaining normalizations in `compare_show_editor.py` — a `T`
 between date and time, `01:00` versus `01:00:00` — are formatting, each commented
 where it is applied.
 
@@ -96,7 +96,7 @@ method the editor reaches for:
   build a show further into the calendar ("load more").
 
 All 20 run on both sides and the rows are identical, with three documented
-divergences — `compare.py` prints each one, with its reason, on every green run.
+divergences — `compare_show_editor.py` prints each one, with its reason, on every green run.
 
 Two things the scenario list does not duplicate:
 
@@ -127,7 +127,7 @@ its database from the installer SQL, which has the cascades, and every dataset
 therefore states that the children go. Upstream's expectation files are right and
 the production schema is what is missing. The port deletes the children explicitly,
 which makes it the side that agrees with the committed intent, and each of the three
-is named in `compare.py`'s `DOCUMENTED` table rather than being quietly normalised
+is named in `compare_show_editor.py`'s `DOCUMENTED` table rather than being quietly normalised
 away.
 
 ## Seeding an item, and why not with the scheduler
@@ -136,7 +136,7 @@ away.
 the scenario is what an edit does to it. The upstream test drives
 `Application_Model_Scheduler::scheduleAfter()` to get it there; both legs of this
 harness insert the rows directly instead — `seedScheduledItem()` in `run-php.php` and
-`seed_scheduled_item()` in `run-py.py`, kept side by side on purpose. Going through
+`seed_scheduled_item()` in `run_python_show_editor.py`, kept side by side on purpose. Going through
 the scheduler would test the scheduler (whose port lives on another branch) rather
 than the editor, and would make a difference between two schedulers show up as a
 difference between two show editors.
