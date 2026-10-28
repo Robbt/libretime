@@ -46,8 +46,8 @@ What it does, step by step, each step bounded by a timeout and printed:
    calendar until `AB_UNTIL`.
 3. `dump.sh php` - the rows it wrote, as CSV, into `out/php/`.
 4. `seed.sql` again - the same state, including sequence values.
-5. `run-py.py` in the API container - the Python builder, same horizon.
-6. `dump.sh python`, then `compare.py` - diff of the two dumps.
+5. `run_python_schedule.py` in the API container - the Python builder, same horizon.
+6. `dump.sh python`, then `compare_schedule.py` - diff of the two dumps.
 7. `seed.sql` once more, leaving the database seeded instead of half populated.
 
 Exit code is non zero when anything differs, and both run scripts fail loudly
@@ -63,7 +63,7 @@ otherwise look like a successful one.
 | `AB_PY_CONTAINER`     | `rt-sched-dev`         | Python builder    |
 | `AB_DB_CONTAINER`     | `libretime-postgres-1` | seeding and dumps |
 
-The Python side needs `psql`-reachable settings: `run-py.py` runs with
+The Python side needs `psql`-reachable settings: `run_python_schedule.py` runs with
 `DJANGO_SETTINGS_MODULE=libretime_api.settings.prod` and
 `LIBRETIME_CONFIG_FILEPATH=/tmp/ab-config.yml`, where that file points at the
 same database as the rest of the stack:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare the rows the legacy and the Python builder produced.
 
-    compare.py <php-dir> <python-dir>
+    compare_schedule.py <php-dir> <python-dir>
 
 Both directories hold the CSVs written by dump.sh. A table is only equal when
 the same rows - and in the generated case the same primary keys, since those
