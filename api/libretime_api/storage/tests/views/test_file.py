@@ -30,16 +30,13 @@ class TestFileViewSet(APITestCase):
         response = self.client.get(f"/api/v2/files/{file.id}/download")
         self.assertEqual(response.status_code, 200)
 
-    def test_update_size_and_md5(self):
+    def test_patch_size_and_md5(self):
         """
-        The one write a running system makes to /api/v2 outside a php screen.
+        What playout patches onto a file after recording a show.
 
-        ``libretime_playout`` computes the size and md5 of a recording and patches
-        them onto the file row with the station token
-        (``player/file.py``). It is pinned here because the serializer ignores keys it
-        does not know: the field is ``size`` - ``cc_files.filesize`` is its column -
-        and a caller that sends ``filesize`` gets a 200 and a row whose size is still
-        zero. That is not hypothetical; it is what the shipped playout does today.
+        The field is "size", not the column's "filesize": an unrecognised key is
+        dropped in silence, so the name is asserted here as well as in
+        playout/tests/player/file_test.py.
         """
         self.client.credentials(HTTP_AUTHORIZATION=f"Api-Key {self.token}")
         file: File = baker.make(
